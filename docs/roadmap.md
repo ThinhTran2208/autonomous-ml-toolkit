@@ -1,8 +1,9 @@
 # Roadmap and acceptance criteria
 
-The MVP covers M0–M4 below. M0/M1 have local validation evidence; work proceeds
-through M2, M3, then M4 on the persistent `autonomous-dev` branch. Do not add
-features after all MVP acceptance criteria are verified.
+The MVP covers M0–M4 below. All milestone criteria are verified; project status is
+MVP_COMPLETE. See docs/progress.md for executed commands and hosted CI evidence.
+The persistent source-of-truth branch is `autonomous-dev`. Further feature work
+requires a new authorized milestone.
 
 ## M0 — Engineering foundation
 

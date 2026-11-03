@@ -1,6 +1,6 @@
 # Release notes
 
-## 0.2.0 — Local MVP candidate
+## 0.2.0 — Verified MVP (unpublished)
 
 - CPU-only classification/regression with strict safe YAML configuration.
 - Built-in Iris and raw Diabetes datasets, plus explicitly typed CSV features.

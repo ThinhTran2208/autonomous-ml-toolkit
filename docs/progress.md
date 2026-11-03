@@ -1,6 +1,57 @@
 # Progress
 
-Project status: MVP_IN_PROGRESS
+Project status: MVP_COMPLETE
+
+## 2026-11-03 — MVP completion verified
+
+All M0–M4 acceptance criteria have verification evidence. Feature work is stopped.
+No subsequent development milestone is authorized.
+
+Verified code commit: `464af58eda84ab45a906cf00adc2370fc7229bcc` on `autonomous-dev`.
+[Successful hosted CI run](https://github.com/ThinhTran2208/autonomous-ml-toolkit/actions/runs/41674892421)
+executed the shared `python scripts/verify.py` command on every target:
+
+| Hosted target | Actual result |
+| --- | --- |
+| Linux Python 3.11 | Passed |
+| Linux Python 3.12 | Passed |
+| Linux Python 3.13 | Passed |
+| Windows Python 3.12, Unicode checkout and environment | Passed |
+
+### Final acceptance evidence
+
+| Criterion | Executed verification |
+| --- | --- |
+| Classification/regression, YAML, baselines, seeded reproducibility | 99 source tests plus 6 independent installed-wheel acceptance tests |
+| Leakage-free preprocessing and evaluation | Actual fold/refit row and target instrumentation; adversarial held-out target tests; saved-model training-statistic and final-metric reconstruction |
+| Typed CSV input, missing values, categorical handling, invalid data rejection | CSV/data regression tests and both documented CSV CLI workflows |
+| Bounded training-only parameter selection | 19 selection tests, both built-in search examples, and independent wheel search acceptance |
+| MLflow configurations, metrics, artifacts, comparison and reporting | Real local SQLite tracking, model reload, run/compare/report CLI acceptance, protocol mismatch and overwrite checks |
+| Installable package and documented usage | README development install, successful sdist/wheel build, fresh venv wheel installation, isolated import from site-packages |
+| Tests, Ruff, CI, documented smoke checks | All four hosted jobs passed the entire shared verifier, including source pytest, lint, format check, clean wheel acceptance, and CSV run/report/compare |
+| Engineering/release documentation | AGENTS.md, milestone acceptance criteria, decisions, API/CLI contract, contribution workflow, compatibility policy, MIT license, and release notes |
+
+Final local source check:
+`.venv/Scripts/python.exe -X utf8 -m pytest --tb=short` — **99 passed** in 57.33s,
+one visible upstream MLflow/SQLAlchemy deprecation warning. Ruff lint and format
+checks passed. Independent clean-wheel acceptance passed **6 tests** locally and
+was rerun successfully by each hosted CI job. No tests or acceptance gates were
+skipped or weakened.
+
+Local full-verifier evidence is preserved in
+`.cache/verification/b42a1d58a1e949b9a1dbfee27d4a6639/`; that earlier successful
+run had 96 source tests before the three console-encoding regressions were added.
+Hosted CI above verifies all 99 source tests, all 6 independent checks, package
+installation/build, and all smoke checks after the console fix.
+
+- Completion tag: `mvp-v0.2.0`, local only.
+- `autonomous-dev` is synchronized with the supplied private origin. Main and
+  repository visibility were preserved; no release or package was published.
+  Existing MLflow runs were preserved. The completion-record commit changes documentation only; the
+  application, tests, verifier, and workflow match the verified code commit above.
+- Unresolved MVP blockers: none. Supported boundaries remain IID CPU-only small
+  tabular data, dense categorical encoding, local SQLite tracking, and trusted
+  serialized model provenance. Future features require a new authorized milestone.
 
 ## 2026-11-03 — Hosted CI exposed a verifier output regression
 
