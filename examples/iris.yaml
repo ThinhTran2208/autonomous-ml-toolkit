@@ -1,0 +1,11 @@
+experiment: iris-baseline
+task: classification
+dataset: iris
+model: logistic_regression
+seed: 42
+test_size: 0.2
+cv_folds: 5
+parameters:
+  C: 1.0
+  max_iter: 1000
+tracking_uri: sqlite:///mlflow.db

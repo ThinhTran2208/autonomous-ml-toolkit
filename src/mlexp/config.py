@@ -1,0 +1,84 @@
+"""Strict, safe YAML configuration for a deliberately small experiment surface."""
+
+import math
+from pathlib import Path
+from typing import Annotated, Literal
+
+import yaml
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, model_validator
+
+
+class ExperimentConfig(BaseModel):
+    """Validated configuration; unknown fields and incompatible models are errors."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    experiment: str = Field(min_length=1, max_length=128, pattern=r"^[\w.-]+$")
+    task: Literal["classification", "regression"]
+    dataset: Literal["iris", "diabetes"]
+    model: Literal["logistic_regression", "ridge", "dummy"]
+    seed: Annotated[StrictInt, Field(ge=0, le=2**32 - 1)] = 42
+    test_size: Annotated[float, Field(strict=True, gt=0, lt=1, allow_inf_nan=False)] = 0.2
+    cv_folds: Annotated[StrictInt, Field(ge=2, le=20)] = 5
+    parameters: dict[str, StrictFloat | StrictInt] = Field(default_factory=dict)
+    tracking_uri: str = "sqlite:///mlflow.db"
+
+    @model_validator(mode="after")
+    def validate_protocol(self):
+        expected_task = {"iris": "classification", "diabetes": "regression"}[self.dataset]
+        if self.task != expected_task:
+            raise ValueError(f"{self.dataset} requires task={expected_task}")
+        allowed_models = {
+            "classification": {"logistic_regression", "dummy"},
+            "regression": {"ridge", "dummy"},
+        }
+        if self.model not in allowed_models[self.task]:
+            raise ValueError(f"{self.model} is incompatible with {self.task}")
+        allowed_parameters = {"logistic_regression": {"C", "max_iter"}, "ridge": {"alpha"}}
+        for key, value in self.parameters.items():
+            if key not in allowed_parameters.get(self.model, set()):
+                raise ValueError(f"Unsupported parameter for {self.model}: {key}")
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{key} must be finite and positive")
+            if key == "max_iter" and (isinstance(value, bool) or int(value) != value):
+                raise ValueError("max_iter must be a positive integer")
+        # M1 is intentionally local-only: no implicit remote services or credentials.
+        validate_tracking_uri(self.tracking_uri)
+        return self
+
+
+def validate_tracking_uri(uri: str) -> None:
+    """Require a persistent local SQLite backend for the initial release."""
+    database = uri.removeprefix("sqlite:///")
+    if (
+        not uri.startswith("sqlite:///")
+        or not database
+        or database == ":memory:"
+        or "?" in database
+        or "#" in database
+    ):
+        raise ValueError("tracking_uri must be a persistent local sqlite:/// database URI")
+
+
+def load_config(path: str | Path) -> ExperimentConfig:
+    """Load one YAML mapping without executing YAML object constructors."""
+
+    class UniqueKeyLoader(yaml.SafeLoader):
+        def construct_mapping(self, node, deep=False):
+            self.flatten_mapping(node)
+            seen = set()
+            for key_node, _ in node.value:
+                key = self.construct_object(key_node, deep=deep)
+                try:
+                    if key in seen:
+                        raise ValueError(f"Duplicate YAML key: {key}")
+                    seen.add(key)
+                except TypeError as exc:
+                    raise ValueError("YAML mapping keys must be scalar values") from exc
+            return super().construct_mapping(node, deep=deep)
+
+    with Path(path).open(encoding="utf-8") as handle:
+        data = yaml.load(handle, Loader=UniqueKeyLoader)
+    if not isinstance(data, dict):
+        raise ValueError("Experiment YAML must contain a mapping")
+    return ExperimentConfig.model_validate(data)

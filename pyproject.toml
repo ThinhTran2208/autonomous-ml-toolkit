@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ml-experiment-evaluation-toolkit"
+version = "0.1.0"
+description = "Reproducible, leakage-free tabular ML experiments with MLflow"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+  "mlflow>=3.0,<4",
+  "numpy>=1.26,<3",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0.2,<7",
+  "scikit-learn>=1.5,<2",
+  # 3.7 corrupts non-ASCII DLL paths on Windows (verified in this workspace).
+  "threadpoolctl>=3.6,<3.7; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<10", "ruff>=0.11,<1", "build>=1.2,<2"]
+
+[project.scripts]
+mlexp = "mlexp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mlexp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = ["error::sklearn.exceptions.ConvergenceWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

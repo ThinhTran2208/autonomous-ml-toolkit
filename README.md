@@ -1,0 +1,126 @@
+# ML Experiment & Evaluation Toolkit
+
+A small CPU-only Python toolkit for reproducible tabular classification and
+regression, with YAML configuration and local MLflow tracking.
+
+The first milestone supports built-in Iris and Diabetes datasets, logistic
+regression, ridge, and dummy baselines. CSV input, categorical features, and
+parameter search are planned in [the roadmap](docs/roadmap.md).
+
+## Quick start
+
+Use Python 3.11–3.13 (3.12 recommended for development).
+
+```bash
+python -m venv .venv
+# Linux/macOS:
+source .venv/bin/activate
+# Windows PowerShell, instead:
+# .venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+
+mlexp run examples/iris.yaml
+mlexp run examples/iris-dummy.yaml
+mlexp run examples/diabetes.yaml
+mlexp run examples/diabetes-dummy.yaml
+mlexp compare --experiment iris-baseline
+mlexp compare --experiment diabetes-baseline
+mlexp report RUN_ID
+mlexp report RUN_ID --output reports/run.md
+```
+
+`run` prints JSON containing the run ID and metrics. Replace `RUN_ID` with that
+ID. `compare` prints JSON ordered by training-only CV accuracy (descending) or CV
+RMSE (ascending). `report` reads MLflow metadata and never retrains. Report files
+are created exclusively; an existing file is never overwritten.
+
+Run all commands from the repository root for the examples. Relative tracking
+database paths are relative to the current working directory, including when a
+config file lives elsewhere. The default backend is `sqlite:///mlflow.db`, with
+artifacts in `mlartifacts/mlflow/`. Both are ignored by Git. To use another local
+database, set `tracking_uri` in YAML and pass the same `--tracking-uri` to
+`compare` and `report`. Remote stores and in-memory databases are outside M1.
+
+Use MLflow's existing interface for deeper inspection:
+
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1
+```
+
+## Configuration
+
+```yaml
+experiment: iris-baseline
+task: classification
+dataset: iris
+model: logistic_regression
+seed: 42
+test_size: 0.2
+cv_folds: 5
+parameters:
+  C: 1.0
+  max_iter: 1000
+tracking_uri: sqlite:///mlflow.db
+```
+
+| Task | Dataset | Models | Supported parameters |
+| --- | --- | --- | --- |
+| Classification | `iris` | `logistic_regression`, `dummy` | `C`, `max_iter` for logistic regression |
+| Regression | `diabetes` | `ridge`, `dummy` | `alpha` for ridge |
+
+For a dummy baseline, set `model: dummy` and `parameters: {}`. Classification
+predicts the most frequent training class; regression predicts the training mean.
+Parameters must be positive finite numbers; `max_iter` must be integral. Other
+model parameters use scikit-learn defaults and are recorded in MLflow. Unknown
+keys, unsupported task/model combinations, bad split sizes, and invalid fold
+counts fail explicitly. YAML is loaded with safe constructors.
+
+## Evaluation and reproducibility
+
+1. Load data without learned preprocessing. Diabetes uses `scaled=False` to avoid
+   its loader's default full-dataset scaling.
+2. Reserve a seeded held-out test partition; stratify classification by target.
+3. Cross-validate only training rows with seeded shuffled folds. Each fold fits
+   its own median imputer, standard scaler, and estimator inside a pipeline.
+4. Refit the pipeline on all training rows, predict the held-out rows once, and
+   calculate final metrics.
+
+Classification reports accuracy and macro F1. Regression reports RMSE, MAE, and
+R². `cv_*` values are the unweighted mean of validation-fold scores; `*_std` is
+the population standard deviation across folds. RMSE/MAE are positive losses;
+lower is better. Each regression validation/test partition needs at least two
+rows. Every classification training class needs at least `cv_folds` rows.
+
+`compare` accepts only finished runs with identical dataset contents, partitions,
+folds, scoring protocol, and recorded dependency versions. Use separate experiment
+names for different protocols. Its ordering never uses test metrics. These small
+toy datasets demonstrate the workflow; their scores are not evidence of broad
+model quality. M1 does not perform hyperparameter search.
+
+**Test scores are final evaluation only.** Do not choose models, parameters,
+features, or thresholds from them. If you iterate after viewing test results,
+reserve a new independent final dataset for an unbiased estimate.
+
+Every run stores the resolved configuration, dataset hash, exact split and fold
+indices, package versions, per-fold scores, model defaults, and fitted pipeline.
+Seeds reproduce partitions and results within the same dependency environment;
+floating-point results may vary by platform/version. Only load serialized model
+artifacts you trust. The toolkit never loads a model while comparing/reporting.
+
+## Development
+
+```bash
+python -m pytest
+ruff check .
+ruff format --check .
+python -m build
+```
+
+CI runs tests, lint, formatting, and a package build on Linux Python 3.11, 3.12,
+and 3.13, plus Windows Python 3.12, in Unicode checkout paths. A Windows-only
+threadpoolctl constraint avoids a verified 3.7 DLL discovery issue in such paths.
+Local test fixtures use temporary tracking databases and never overwrite
+the example store. See [decisions](docs/decisions.md), [progress](docs/progress.md),
+and [engineering instructions](AGENTS.md) before contributing.
+
+Licensed under the [MIT license](LICENSE).
