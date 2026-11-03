@@ -23,11 +23,15 @@ it, and resolves a CSV path relative to the YAML file. It does not load the data
 Tracking URIs remain relative to the current working directory. Persistent local
 SQLite URIs are supported; remote stores and in-memory backends are rejected.
 
-`run_experiment(config)` validates/loads data, reserves test rows, performs
-training-only CV or bounded search, refits, evaluates once, and saves MLflow
+`run_experiment(config)` validates/loads data, reserves test and optional validation
+rows, performs training-only CV or bounded search, refits, evaluates, and saves MLflow
 artifacts. It returns a dictionary with `run_id`, `experiment`, and numeric
-`metrics`. Invalid data raises `ValueError`; input errors may raise `OSError` or
-YAML/Pydantic validation errors. MLflow failures propagate its exceptions. Failures
+`metrics`. `test_size` and optional `validation_size` are fractions of all rows;
+the remainder trains the pipeline. The latter defaults to zero for train/test
+compatibility. Validation never enters CV/search/refit and is evaluated only after
+training, before the final test prediction. Invalid data raises `ValueError`; input
+errors may raise `OSError` or YAML/Pydantic validation errors. MLflow failures
+propagate its exceptions. Failures
 after run creation mark the run FAILED; keyboard interruption marks it KILLED.
 
 `compare_runs(experiment, tracking_uri="sqlite:///mlflow.db")` returns a list of
@@ -58,7 +62,7 @@ go to stderr. Relative report paths use the current working directory.
 ## Artifacts and metric interpretation
 
 - `config.json`: validated requested configuration, including search settings.
-- `split.json`: dataset fingerprint, schema, and exact train/test/CV row identities.
+- `split.json`: dataset fingerprint, schema, and exact train/validation/test/CV row identities.
 - `protocol.json`: evaluation protocol, scoring functions, split, and package versions.
 - `environment.json`: toolkit/Python and relevant runtime package versions.
 - `fold_scores.json`: selected or fixed candidate scores per validation fold.
@@ -70,6 +74,14 @@ are positive losses; lower is better. Classification accuracy/macro F1 and
 regression R² are higher-is-better metrics. Selected CV scores can be optimistic
 after search; test metrics are final evaluation only. Serialized pipeline loading
 requires trusted artifacts; neither comparison nor reporting deserializes models.
+
+Protocol 4 logs optional `validation_accuracy` / `validation_f1_macro` or
+`validation_rmse` / `validation_mae` / `validation_r2`. These are diagnostic only;
+comparison continues to rank training-only CV scores. Validation rows are excluded
+from every fitted transformation and estimator, even the final refit. Runs using
+different partitions or older protocols cannot be ranked together. Their reports
+remain accessible. `validation_size: 0.0` records an empty `validation_indices`
+list and zero validation rows, and produces no validation metrics.
 
 This MVP assumes independent, identically distributed rows. Grouped subjects,
 time series, high-cardinality sparse data, multi-output targets, GPU work, and

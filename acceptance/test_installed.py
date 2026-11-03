@@ -13,10 +13,19 @@ from pathlib import Path
 
 import mlflow.sklearn
 import numpy as np
+import pandas as pd
 import pytest
 from mlflow.tracking import MlflowClient
-from sklearn.datasets import load_diabetes, load_iris
-from sklearn.metrics import accuracy_score, root_mean_squared_error
+from sklearn.base import clone
+from sklearn.datasets import fetch_california_housing, load_breast_cancer, load_diabetes, load_iris
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    r2_score,
+    root_mean_squared_error,
+)
+from sklearn.model_selection import cross_validate
 
 
 @pytest.fixture(scope="session")
@@ -210,3 +219,145 @@ def test_yaml_validation_failure_is_actionable(cli, tmp_path):
         "!!python/object/apply:builtins.eval ['1+1']", encoding="utf-8"
     )
     invoke(cli, tmp_path, "run", "unsafe.yaml", expected=1)
+
+
+@pytest.mark.parametrize(
+    "dataset,task,target",
+    [
+        ("iris", "classification", "species"),
+        ("breast-cancer-wisconsin", "classification", "diagnosis"),
+        ("california-housing", "regression", "house_value"),
+    ],
+)
+def test_arbitrary_csv_three_way_workflow(cli, tmp_path, dataset, task, target):
+    """The same installed CLI handles all datasets by changing YAML alone.
+
+    California Housing is real data fetched once into an ignored repository cache.
+    Missing fields and a categorical predictor exercise the CSV preprocessing path.
+    No datasets are committed, and a download failure fails acceptance explicitly.
+    """
+    if dataset == "california-housing":
+        data = fetch_california_housing(
+            data_home=Path(__file__).resolve().parents[1] / ".cache" / "datasets"
+        )
+        assert len(data.target) == 20640
+    else:
+        data = load_iris() if dataset == "iris" else load_breast_cancer()
+    frame = pd.DataFrame(data.data, columns=data.feature_names)
+    numeric = frame.columns.tolist()
+    frame["sample_group"] = np.array(["north", "south", "west"])[np.arange(len(frame)) % 3]
+    frame.loc[::37, numeric[0]] = np.nan
+    frame.loc[::41, "sample_group"] = np.nan
+    frame[target] = data.target
+    frame.to_csv(tmp_path / "input.csv", index=False)
+    settings = tmp_path / "settings"
+    settings.mkdir()
+    config = {
+        "experiment": f"csv-{dataset}",
+        "task": task,
+        "dataset": {
+            "type": "csv",
+            "path": "../input.csv",
+            "target": target,
+            "numeric_features": numeric,
+            "categorical_features": ["sample_group"],
+            "missing_values": "impute",
+        },
+        "model": "logistic_regression" if task == "classification" else "ridge",
+        "seed": 73,
+        "test_size": 0.2,
+        "validation_size": 0.2,
+        "cv_folds": 3,
+        "tracking_uri": "sqlite:///csv.db",
+    }
+    (settings / "experiment.yaml").write_text(json.dumps(config), encoding="utf-8")
+    result = json.loads(invoke(cli, tmp_path, "run", "settings/experiment.yaml"))
+    uri = f"sqlite:///{(tmp_path / 'csv.db').as_posix()}"
+    client = MlflowClient(tracking_uri=uri)
+    run = client.get_run(result["run_id"])
+    assert run.info.status == "FINISHED"
+    assert run.data.metrics == result["metrics"]
+    download = tmp_path / "artifacts"
+    download.mkdir()
+
+    def artifact(name):
+        return json.loads(
+            Path(client.download_artifacts(result["run_id"], name, str(download))).read_text(
+                encoding="utf-8"
+            )
+        )
+
+    manifest = artifact("split.json")
+    assert manifest["dataset"] == "csv" and manifest["schema"]["target"] == target
+    assert artifact("config.json")["validation_size"] == 0.2
+    train, validation, test = [
+        manifest[f"{part}_indices"] for part in ("train", "validation", "test")
+    ]
+    assert len(set(train + validation + test)) == len(frame)
+    assert len(train) + len(validation) + len(test) == len(frame)
+    assert len(test) == int(np.ceil(0.2 * len(frame)))
+    assert len(validation) == int(np.ceil(0.25 * (len(frame) - len(test))))
+    for name, rows in (("train", train), ("validation", validation), ("test", test)):
+        assert int(run.data.params[f"{name}_rows"]) == len(rows)
+    fitted = mlflow.sklearn.load_model(
+        client.download_artifacts(result["run_id"], "model", str(download))
+    )
+    # Reparse the exported file independently, including lexical target labels.
+    frame = pd.read_csv(
+        tmp_path / "input.csv", dtype={target: str} if task == "classification" else None
+    )
+    X, y = frame[numeric + ["sample_group"]], frame[target].to_numpy()
+    preprocessing = fitted.named_steps["preprocessor"]
+    assert target not in preprocessing.feature_names_in_
+    numeric_pipeline = preprocessing.named_transformers_["numeric"]
+    medians = np.nanmedian(X.iloc[train][numeric].to_numpy(), axis=0)
+    np.testing.assert_allclose(numeric_pipeline.named_steps["imputer"].statistics_, medians)
+    imputed_train = X.iloc[train][numeric].fillna(dict(zip(numeric, medians, strict=True)))
+    np.testing.assert_allclose(numeric_pipeline.named_steps["scaler"].mean_, imputed_train.mean())
+
+    scoring = (
+        {"accuracy": "accuracy", "f1_macro": "f1_macro"}
+        if task == "classification"
+        else {"rmse": "neg_root_mean_squared_error", "mae": "neg_mean_absolute_error", "r2": "r2"}
+    )
+    folds = []
+    train_positions = {row: position for position, row in enumerate(train)}
+    for fold in manifest["cv_folds"]:
+        a, b = fold["train_indices"], fold["validation_indices"]
+        assert set(a).isdisjoint(b) and set(a + b) == set(train)
+        folds.append(([train_positions[row] for row in a], [train_positions[row] for row in b]))
+    oracle_cv = cross_validate(
+        clone(fitted), X.iloc[train], y[train], cv=folds, scoring=scoring, error_score="raise"
+    )
+    for metric in scoring:
+        scores = oracle_cv[f"test_{metric}"] * (-1 if metric in {"rmse", "mae"} else 1)
+        assert result["metrics"][f"cv_{metric}"] == pytest.approx(np.mean(scores))
+        assert result["metrics"][f"cv_{metric}_std"] == pytest.approx(np.std(scores))
+    for prefix, rows in (("validation", validation), ("test", test)):
+        predictions = fitted.predict(X.iloc[rows])
+        expected = (
+            {
+                "accuracy": accuracy_score(y[rows], predictions),
+                "f1_macro": f1_score(y[rows], predictions, average="macro"),
+            }
+            if task == "classification"
+            else {
+                "rmse": root_mean_squared_error(y[rows], predictions),
+                "mae": mean_absolute_error(y[rows], predictions),
+                "r2": r2_score(y[rows], predictions),
+            }
+        )
+        for metric, value in expected.items():
+            assert np.isfinite(value)
+            assert result["metrics"][f"{prefix}_{metric}"] == pytest.approx(value)
+    comparison = json.loads(
+        invoke(
+            cli, tmp_path, "compare", "--experiment", config["experiment"], "--tracking-uri", uri
+        )
+    )
+    assert comparison[0]["run_id"] == result["run_id"]
+    assert comparison[0]["selection_metric"] == (
+        "cv_accuracy" if task == "classification" else "cv_rmse"
+    )
+    report = invoke(cli, tmp_path, "report", result["run_id"], "--tracking-uri", uri)
+    assert "validation_" in report and "test_" in report

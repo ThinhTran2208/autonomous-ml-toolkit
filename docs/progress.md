@@ -1,6 +1,41 @@
 # Progress
 
-Project status: MVP_COMPLETE
+Project status: DATASET_AGNOSTIC_IN_PROGRESS
+
+## 2026-11-03 — Authorized M5 dataset-agnostic assurance
+
+The user authorized YAML-only arbitrary compatible tabular CSV experiments,
+explicit train/validation/test splits, and end-to-end verification on Iris,
+Breast Cancer Wisconsin, and California Housing after original MVP completion.
+Original M0–M4 completion evidence below is preserved.
+
+- Existing strict CSV target/schema/missing policies remain the common loader.
+- Added optional validation fractions with training-only CV/search/preprocessing
+  and fit, diagnostic validation metrics, and a final test evaluation.
+- Added independent installed-wheel CLI coverage for all three full datasets,
+  checking each CV/validation/test metric against scikit-learn oracles.
+- Targeted command `.venv/Scripts/python.exe -X utf8 -m pytest
+  tests/test_validation.py tests/test_config.py --tb=short`: **43 passed** in
+  19.41s, one visible upstream MLflow/SQLAlchemy deprecation warning.
+- Shared verifier source stage: **113 passed** in 76.29s, one visible upstream
+  warning. Ruff lint/format and sdist/wheel build passed. Version 0.3.0 development
+  installation succeeded using the README command.
+- Fresh-wheel installation succeeded. Independent acceptance: **9 passed** in
+  234.11s, one visible upstream warning. This includes the full Iris (150 rows),
+  Breast Cancer Wisconsin (569 rows), and California Housing (20,640 rows) CSV
+  workflows, all CV/validation/test metric oracles, and training-only saved
+  preprocessing statistics. No tests were skipped or weakened.
+- `.venv/Scripts/python.exe -X utf8 scripts/verify.py`: **PASSED**, including
+  both CSV examples' `run`, `report --output`, and `compare` commands from outside
+  the source checkout, using the fresh wheel and three-way partitions.
+  Full evidence: `.cache/verification/89f3e18692c24466bca17d82a1cfd551/result.json`,
+  with per-step logs, isolated environment, and dependency freeze retained.
+- Final `python -m ruff check .`, `python -m ruff format --check .`, and
+  `git diff --check` passed. No new datasets, stores, serialized models, or local
+  environment artifacts are included in the changes.
+- Local M5 acceptance is complete. Remote synchronization and hosted results
+  remain pending; no feature work remains and no current blocker was encountered.
+
 
 ## 2026-11-03 — MVP completion verified
 

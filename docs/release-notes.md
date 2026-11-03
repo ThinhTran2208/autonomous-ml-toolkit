@@ -1,5 +1,16 @@
 # Release notes
 
+## 0.3.0 — Dataset-agnostic CSV assurance (unpublished)
+
+- YAML-configurable separate validation fraction and logged validation metrics;
+  CV/search/preprocessing/final refit remain confined to training rows.
+- Protocol 4 records train/validation/test rows and diagnostic validation roles;
+  existing runs remain reportable, with cross-protocol ranking rejected.
+- Independent installed-wheel CLI acceptance for full Iris, Breast Cancer Wisconsin,
+  and California Housing CSVs, mixed features/missing values, and metric oracles.
+- Targeted leakage and reproducibility tests for fixed and searched models on both tasks.
+- California Housing acceptance downloads are cached locally and excluded from Git.
+
 ## 0.2.0 — Verified MVP (unpublished)
 
 - CPU-only classification/regression with strict safe YAML configuration.

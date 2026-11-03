@@ -1,5 +1,27 @@
 # Engineering decisions
 
+## 2026-11-03 — Dataset-agnostic assurance and validation partitions
+
+- The user authorized this focused extension after original MVP completion. Retain
+  CSVDataConfig, scikit-learn pipelines, training-only GridSearchCV, and MLflow;
+  add no dataset-specific execution paths, image/NLP features, or new libraries.
+- Add optional top-level `validation_size`, as a fraction of all rows. Reserve the
+  existing seeded test split first, then stratified/seeded validation from remaining
+  rows. The remainder trains. Zero preserves the original two-way behavior.
+- Treat separate validation scores as diagnostics, preserving the existing CV-only
+  selection and comparison contract. Fit on training rows only, evaluate validation
+  once, then test once. Never refit on validation or test rows.
+- Advance the package to 0.3.0 and evaluation protocol to 4 for explicitly logged
+  validation row identities/role. Preserve existing runs; cross-protocol comparison
+  is rejected while reports remain available.
+- Test the full named datasets through exported CSVs and an installed CLI, with
+  different YAML schemas, targets, categorical predictors, and missing values.
+  Fetch California Housing through scikit-learn into ignored `.cache/datasets/`;
+  never commit datasets. Download failures are acceptance failures, not skips.
+- Independently reconstruct every metric and saved training statistics; instrument
+  all preprocessing fits and adversarially change validation/test rows and targets
+  for both tasks, fixed models, and parameter search.
+
 ## 2026-11-03 — Initial architecture
 
 - Use a `src/mlexp` package, Python 3.11+, scikit-learn, MLflow, PyYAML, Pydantic,

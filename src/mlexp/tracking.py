@@ -107,6 +107,7 @@ def render_report(run_id: str, tracking_uri: str = DEFAULT_TRACKING_URI) -> str:
             "",
             "CV metrics use training rows only. Final test metrics are for final evaluation;",
             "do not use them to select models, parameters, features, or thresholds.",
+            "Optional validation metrics are diagnostics. Only training rows fit the pipeline.",
             "Repeated test inspection compromises the held-out estimate.",
             "",
             f"Artifacts: {run.info.artifact_uri}",

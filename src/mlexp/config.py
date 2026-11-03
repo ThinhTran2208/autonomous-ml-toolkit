@@ -70,6 +70,7 @@ class ExperimentConfig(BaseModel):
     model: Literal["logistic_regression", "ridge", "dummy"]
     seed: Annotated[StrictInt, Field(ge=0, le=2**32 - 1)] = 42
     test_size: Annotated[float, Field(strict=True, gt=0, lt=1, allow_inf_nan=False)] = 0.2
+    validation_size: Annotated[float, Field(strict=True, ge=0, lt=1, allow_inf_nan=False)] = 0.0
     cv_folds: Annotated[StrictInt, Field(ge=2, le=20)] = 5
     parameters: dict[str, StrictFloat | StrictInt] = Field(default_factory=dict)
     search: SearchConfig | None = None
@@ -77,6 +78,8 @@ class ExperimentConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_protocol(self):
+        if self.test_size + self.validation_size >= 1:
+            raise ValueError("test_size + validation_size must be less than 1")
         if isinstance(self.dataset, str):
             expected_task = {"iris": "classification", "diabetes": "regression"}[self.dataset]
             if self.task != expected_task:

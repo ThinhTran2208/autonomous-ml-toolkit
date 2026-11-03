@@ -23,6 +23,7 @@ class DatasetSplit:
     fingerprint: str
     feature_names: list[str]
     schema: dict = field(default_factory=dict)
+    validation_indices: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
 
 
 def take_rows(X: np.ndarray | pd.DataFrame, indices: np.ndarray):
@@ -97,7 +98,7 @@ def load_csv(source: CSVDataConfig, task: str) -> tuple[pd.DataFrame, np.ndarray
 
 
 def load_split(config: ExperimentConfig) -> DatasetSplit:
-    """Reserve test rows before any fitting; never download external data."""
+    """Reserve test and optional validation rows before any fitting or selection."""
     if isinstance(config.dataset, CSVDataConfig):
         X, y, fingerprint, schema = load_csv(config.dataset, config.task)
         feature_names = list(X.columns)
@@ -122,10 +123,20 @@ def load_split(config: ExperimentConfig) -> DatasetSplit:
     )
     if len(test) < 2:
         raise ValueError("The held-out partition must contain at least two rows")
+    validation = np.array([], dtype=int)
+    if config.validation_size:
+        train, validation = train_test_split(
+            train,
+            test_size=config.validation_size / (1 - config.test_size),
+            random_state=config.seed,
+            stratify=y[train] if config.task == "classification" else None,
+        )
+        if len(validation) < 2:
+            raise ValueError("The validation partition must contain at least two rows")
     if config.task == "classification":
         _, counts = np.unique(y[train], return_counts=True)
         if counts.min() < config.cv_folds:
             raise ValueError("Each training class must have at least cv_folds rows")
     elif len(train) // config.cv_folds < 2:
         raise ValueError("Each regression CV validation fold must contain at least two rows")
-    return DatasetSplit(X, y, train, test, fingerprint, feature_names, schema)
+    return DatasetSplit(X, y, train, test, fingerprint, feature_names, schema, validation)

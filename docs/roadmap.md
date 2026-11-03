@@ -1,9 +1,9 @@
 # Roadmap and acceptance criteria
 
-The MVP covers M0–M4 below. All milestone criteria are verified; project status is
-MVP_COMPLETE. See docs/progress.md for executed commands and hosted CI evidence.
-The persistent source-of-truth branch is `autonomous-dev`. Further feature work
-requires a new authorized milestone.
+The original MVP covers M0–M4 below and has verified completion evidence.
+The user subsequently authorized M5: dataset-agnostic CSV assurance and explicit
+validation partitions, within the same tabular MVP scope. The persistent
+source-of-truth branch remains `autonomous-dev`. See docs/progress.md for status.
 
 ## M0 — Engineering foundation
 
@@ -65,5 +65,26 @@ Acceptance:
   `ruff format --check .` pass; wheel CLI smoke checks run in CI.
 - Dependency update and compatibility policy, license choice, and release notes
   are recorded before any published release.
+
+## M5 — Dataset-agnostic CSV and three-way evaluation
+
+Acceptance:
+- Arbitrary compatible classification/regression CSV input requires YAML changes
+  only: configurable target, numeric/categorical predictors, and missing policy.
+- Configurable `test_size` and optional `validation_size` reserve disjoint seeded
+  partitions; their remaining rows train. Invalid sizes/class counts fail early.
+- All preprocessing, CV, search, and final fitting exclude validation/test rows.
+  Comparison uses CV only; validation diagnostics and final test metrics are tracked.
+- `python -m pytest tests/test_validation.py tests/test_config.py` verifies exact
+  fitting rows, deterministic splits, rejected input, and adversarial held-out data.
+- Independent installed-wheel CLI run/compare/report acceptance passes on full
+  Iris, Breast Cancer Wisconsin, and California Housing CSV exports, including
+  mixed features and missing values. All CV/validation/test metrics are independently
+  reconstructed; saved preprocessing statistics match training rows only.
+- `python scripts/verify.py` passes lint, format, full source tests, build, fresh
+  wheel install, independent acceptance, and both documented CSV CLI smoke tests.
+- README documents YAML-only usage, split semantics, metric roles, and the cached
+  California Housing acceptance download. No datasets or model artifacts are pushed.
+- Verified code is committed and synchronized only to `origin/autonomous-dev`.
 
 The progress log records actual verification evidence and remaining limitations.

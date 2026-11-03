@@ -27,6 +27,23 @@ from mlexp.selection import fit_search
 from mlexp.tracking import get_or_create_experiment, local_client
 
 
+def evaluation_metrics(y, predictions, classification: bool, prefix: str) -> dict[str, float]:
+    """Use the same metric definitions for independent validation and final test rows."""
+    values = (
+        {
+            "accuracy": accuracy_score(y, predictions),
+            "f1_macro": f1_score(y, predictions, average="macro", zero_division=0),
+        }
+        if classification
+        else {
+            "rmse": root_mean_squared_error(y, predictions),
+            "mae": mean_absolute_error(y, predictions),
+            "r2": r2_score(y, predictions),
+        }
+    )
+    return {f"{prefix}_{name}": float(value) for name, value in values.items()}
+
+
 def run_experiment(config: ExperimentConfig) -> dict:
     """Fit a fixed or CV-selected model; held-out data is used only at the end."""
     split = load_split(config)
@@ -66,6 +83,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
         "feature_names": split.feature_names,
         "schema": split.schema,
         "train_indices": train.tolist(),
+        "validation_indices": split.validation_indices.tolist(),
         "test_indices": test.tolist(),
         "cv_folds": [
             {"train_indices": train[a].tolist(), "validation_indices": train[b].tolist()}
@@ -73,7 +91,8 @@ def run_experiment(config: ExperimentConfig) -> dict:
         ],
     }
     protocol = {
-        "protocol_version": 3,
+        "protocol_version": 4,
+        "validation_role": "diagnostic_only_no_selection_or_refit",
         "task": config.task,
         "split": manifest,
         "scoring": scoring,
@@ -84,7 +103,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
     experiment_id = get_or_create_experiment(client, config.experiment, config.tracking_uri)
     run = client.create_run(
         experiment_id,
-        tags={"mlexp.comparison_key": comparison_key, "mlexp.protocol_version": "3"},
+        tags={"mlexp.comparison_key": comparison_key, "mlexp.protocol_version": "4"},
         run_name=f"{dataset_name}-{config.model}-seed{config.seed}",
     )
     run_id = run.info.run_id
@@ -104,7 +123,13 @@ def run_experiment(config: ExperimentConfig) -> dict:
             )
             params["selection_method"] = "grid_search" if config.search else "fixed"
             params.update({f"model.{key}": value for key, value in config.parameters.items()})
-            params.update({"train_rows": len(train), "test_rows": len(test)})
+            params.update(
+                {
+                    "train_rows": len(train),
+                    "validation_rows": len(split.validation_indices),
+                    "test_rows": len(test),
+                }
+            )
             # Include defaults as well as explicit overrides for reproducibility.
             params["requested_model_parameters"] = json.dumps(
                 pipeline.named_steps["model"].get_params(), sort_keys=True
@@ -148,22 +173,22 @@ def run_experiment(config: ExperimentConfig) -> dict:
                 json.dumps(selection, indent=2), encoding="utf-8"
             )
             client.log_artifact(run_id, str(directory / "selection.json"))
-            # The only held-out prediction; everything above uses training rows only.
+            if len(split.validation_indices):
+                validation_predictions = pipeline.predict(
+                    take_rows(split.X, split.validation_indices)
+                )
+                metrics.update(
+                    evaluation_metrics(
+                        split.y[split.validation_indices],
+                        validation_predictions,
+                        classification,
+                        "validation",
+                    )
+                )
+            # One final test prediction, with the pipeline fitted only on training rows.
             predictions = pipeline.predict(take_rows(split.X, test))
             y_test = split.y[test]
-            if classification:
-                metrics.update(
-                    test_accuracy=float(accuracy_score(y_test, predictions)),
-                    test_f1_macro=float(
-                        f1_score(y_test, predictions, average="macro", zero_division=0)
-                    ),
-                )
-            else:
-                metrics.update(
-                    test_rmse=float(root_mean_squared_error(y_test, predictions)),
-                    test_mae=float(mean_absolute_error(y_test, predictions)),
-                    test_r2=float(r2_score(y_test, predictions)),
-                )
+            metrics.update(evaluation_metrics(y_test, predictions, classification, "test"))
             if not all(math.isfinite(value) for value in metrics.values()):
                 raise ValueError("Evaluation produced a non-finite metric")
             for name, value in metrics.items():

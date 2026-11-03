@@ -41,8 +41,8 @@ artifacts in `mlartifacts/mlflow/`. Both are ignored by Git. To use another loca
 database, set `tracking_uri` in YAML and pass the same `--tracking-uri` to
 `compare` and `report`. Remote stores and in-memory databases are outside M1.
 
-When upgrading an existing workspace, preserve its tracking store. Version 0.2.0
-uses evaluation protocol 3 and refuses to rank historic runs from another protocol
+When upgrading an existing workspace, preserve its tracking store. Version 0.3.0
+uses evaluation protocol 4 and refuses to rank historic runs from another protocol
 or dependency environment. Use a new experiment name or set `tracking_uri` to a
 fresh SQLite database in the new configs and pass that URI to compare/report.
 Existing runs remain available through `report` with their original database URI.
@@ -71,8 +71,8 @@ tracking_uri: sqlite:///mlflow.db
 
 | Task | Dataset | Models | Supported parameters |
 | --- | --- | --- | --- |
-| Classification | `iris` | `logistic_regression`, `dummy` | `C`, `max_iter` for logistic regression |
-| Regression | `diabetes` | `ridge`, `dummy` | `alpha` for ridge |
+| Classification | `iris` or compatible CSV | `logistic_regression`, `dummy` | `C`, `max_iter` for logistic regression |
+| Regression | `diabetes` or compatible CSV | `ridge`, `dummy` | `alpha` for ridge |
 
 For a dummy baseline, set `model: dummy` and `parameters: {}`. Classification
 predicts the most frequent training class; regression predicts the training mean.
@@ -91,9 +91,19 @@ mlexp run examples/csv-classification.yaml
 mlexp run examples/csv-regression.yaml
 ```
 
-Replace the dataset entry with an explicit schema:
+To use any compatible tabular CSV, change only the YAML configuration; there is
+no dataset registration or Python code to edit. Set `task` to `classification`
+with `model: logistic_regression` (or `dummy`), or `regression` with `model: ridge`
+(or `dummy`). Choose the target and feature columns in the dataset schema:
 
 ```yaml
+experiment: custom-classification
+task: classification
+model: logistic_regression
+seed: 42
+test_size: 0.2
+validation_size: 0.2
+cv_folds: 5
 dataset:
   type: csv
   path: data/custom.csv
@@ -101,7 +111,12 @@ dataset:
   numeric_features: [age, income]
   categorical_features: [region]
   missing_values: impute
+tracking_uri: sqlite:///custom.db
 ```
+
+Save this as `experiment.yaml`, put the CSV at `data/custom.csv` beside that YAML,
+then run `mlexp run experiment.yaml`. Both task types use the same CSV loader and
+pipeline architecture. All feature names and the target are configurable.
 
 CSV paths resolve relative to the YAML file. CSV headers must match the listed
 features and target exactly; duplicate, absent, unnamed, or unexpected columns
@@ -121,6 +136,26 @@ tabular datasets; very high-cardinality data is outside this MVP.
 
 CSV bytes are read once and fingerprinted together with the explicit schema.
 The target/feature schema is recorded in the MLflow split and protocol artifacts.
+
+## Train, validation, and test splits
+
+`test_size` (default `0.2`) and `validation_size` (default `0.0`) are fractions
+of all rows. Both must be finite, test size must be positive, validation size
+must be nonnegative, and their sum must be less than one. The remainder is the
+training fraction: `0.2` test and `0.2` validation gives approximately 60/20/20.
+Counts round up when reserving each partition; train receives the remaining rows.
+The test partition is reserved first, then validation is split from the remainder
+using `validation_size / (1 - test_size)`. Classification stratifies both splits;
+all splits use `seed`. Insufficient rows or class counts fail explicitly.
+
+Cross-validation and optional parameter search run inside the training partition
+only. After a final fit on training rows, the pipeline predicts validation rows
+once (if configured), then test rows once. Validation metrics are diagnostic;
+they do not drive automatic selection or ranking. Neither validation nor test
+rows enter any preprocessing fit or final refit. `validation_*` and `test_*`
+metrics are logged separately, along with exact row identities and counts.
+With `validation_size: 0.0`, the original train/test plus training-only CV workflow
+remains available; no `validation_*` metrics are emitted.
 
 ## Training-only parameter search
 
@@ -155,17 +190,18 @@ test scores for final assessment only. No search parameter can reference them.
 
 1. Load data without learned preprocessing. Diabetes uses `scaled=False` to avoid
    its loader's default full-dataset scaling.
-2. Reserve a seeded held-out test partition; stratify classification by target.
+2. Reserve seeded test and optional validation partitions; stratify classification.
 3. Cross-validate only training rows with seeded shuffled folds. Each fold fits
    its own median imputer, standard scaler, and estimator inside a pipeline.
-4. Refit the pipeline on all training rows, predict the held-out rows once, and
-   calculate final metrics.
+4. Refit on training rows, calculate optional validation diagnostics, then predict
+   the held-out test rows once for final metrics. Never refit on validation rows.
 
 Classification reports accuracy and macro F1. Regression reports RMSE, MAE, and
 R². `cv_*` values are the unweighted mean of validation-fold scores; `*_std` is
 the population standard deviation across folds. RMSE/MAE are positive losses;
 lower is better. Each regression validation/test partition needs at least two
-rows. Every classification training class needs at least `cv_folds` rows.
+rows (including a configured separate validation partition). Every classification
+training class needs at least `cv_folds` rows.
 
 `compare` accepts only finished runs with identical dataset contents, partitions,
 folds, scoring protocol, and recorded dependency versions. Use separate experiment
@@ -199,6 +235,16 @@ built-in-dataset acceptance suite outside the source tree, and smoke-tests the
 CSV CLI workflows. Logs, environments, stores, and reports are preserved under
 ignored `.cache/verification/` directories. A run succeeds only if every check
 passes. It requires dependency downloads but uses no paid services.
+
+Independent wheel acceptance exports the full Iris (150 rows), Breast Cancer
+Wisconsin (569 rows), and California Housing (20,640 rows) datasets to temporary
+CSVs, then runs the same CLI with different YAML schemas. It includes categorical
+predictors and missing feature values, reconstructs every CV/validation/test
+metric, and verifies training-only imputer/scaler statistics. California Housing
+is [downloaded by scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.fetch_california_housing.html)
+on the first acceptance run into ignored `.cache/datasets/`; subsequent runs use
+the cache. A download failure fails acceptance rather than skipping the test.
+Ordinary `mlexp run` never downloads datasets; users supply their CSV locally.
 
 CI targets Linux Python 3.11, 3.12, and 3.13, plus Windows Python 3.12, in Unicode
 checkout paths, using that same command. A Windows-only
