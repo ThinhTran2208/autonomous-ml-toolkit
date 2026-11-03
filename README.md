@@ -3,9 +3,9 @@
 A small CPU-only Python toolkit for reproducible tabular classification and
 regression, with YAML configuration and local MLflow tracking.
 
-The first milestone supports built-in Iris and Diabetes datasets, logistic
-regression, ridge, and dummy baselines. CSV input, categorical features, and
-parameter search are planned in [the roadmap](docs/roadmap.md).
+Supports built-in Iris and Diabetes datasets, explicitly typed CSV datasets,
+logistic regression, ridge, and dummy baselines. See [the roadmap](docs/roadmap.md)
+for milestone acceptance criteria.
 
 ## Quick start
 
@@ -74,6 +74,47 @@ Parameters must be positive finite numbers; `max_iter` must be integral. Other
 model parameters use scikit-learn defaults and are recorded in MLflow. Unknown
 keys, unsupported task/model combinations, bad split sizes, and invalid fold
 counts fail explicitly. YAML is loaded with safe constructors.
+
+## CSV input
+
+Use `examples/csv-classification.yaml` or `examples/csv-regression.yaml` for
+complete examples with small fabricated datasets checked into this repository:
+
+```bash
+mlexp run examples/csv-classification.yaml
+mlexp run examples/csv-regression.yaml
+```
+
+Replace the dataset entry with an explicit schema:
+
+```yaml
+dataset:
+  type: csv
+  path: data/custom.csv
+  target: label
+  numeric_features: [age, income]
+  categorical_features: [region]
+  missing_values: impute
+```
+
+CSV paths resolve relative to the YAML file. CSV headers must match the listed
+features and target exactly; duplicate, absent, unnamed, or unexpected columns
+and malformed rows are errors. The target cannot appear among predictors.
+Blank/whitespace fields are missing; strings such as `NA` remain literal values.
+Targets are never imputed, and no rows are silently removed. Regression targets
+and numeric features must contain finite numeric values (features may be missing).
+Classification targets are string labels and must contain at least two classes.
+
+With `missing_values: impute`, numerical columns use training medians and scaling;
+a numerical column empty in a training fold is filled with zero. Categorical
+missing values use `__mlexp_missing__`, with one-hot encoding learned inside each
+fold. Unseen categories are ignored on transformation. Set `missing_values: error`
+to reject missing feature values instead. Either feature list may be empty,
+but at least one predictor is required. Dense one-hot encoding targets small
+tabular datasets; very high-cardinality data is outside this MVP.
+
+CSV bytes are read once and fingerprinted together with the explicit schema.
+The target/feature schema is recorded in the MLflow split and protocol artifacts.
 
 ## Evaluation and reproducibility
 

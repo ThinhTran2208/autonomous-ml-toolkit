@@ -1,0 +1,14 @@
+experiment: csv-classification
+task: classification
+dataset:
+  type: csv
+  path: data/classification.csv
+  target: label
+  numeric_features: [number]
+  categorical_features: [category]
+  missing_values: impute
+model: logistic_regression
+seed: 42
+test_size: 0.2
+cv_folds: 3
+tracking_uri: sqlite:///mlflow.db

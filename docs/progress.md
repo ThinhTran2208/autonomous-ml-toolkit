@@ -1,5 +1,30 @@
 # Progress
 
+Project status: MVP_IN_PROGRESS
+
+## 2026-11-03 — M2 CSV experiments completed
+
+- Created `autonomous-dev` from the existing verified project state; preserved
+  the original branch, generated data, and local history. No publication or remote
+  synchronization was performed, as requested.
+- Added explicit CSV schemas, strict row/header/target/type validation, numeric
+  and categorical preprocessing inside each fold, and content/schema fingerprints.
+- Added fabricated classification/regression CSV examples and tests for missing
+  values, unseen categories, all-missing columns, target exclusion, and model reload.
+- Initial runtime tests exposed a non-JSON dataset manifest and pandas inferring
+  a float dtype for all-missing categorical columns. Fixed both and reran all tests.
+- `.venv/Scripts/python.exe -X utf8 -m pytest --tb=short`: **75 passed** in 62.41s,
+  one upstream MLflow/SQLAlchemy deprecation warning. Cache locations now use the
+  writable ignored `.cache/` directory; no tests or assertions were bypassed.
+- `.venv/Scripts/ruff.exe check .`: passed. `ruff format --check .`: 19 files formatted.
+- `.venv/Scripts/python.exe -X utf8 -m pytest tests/test_data.py tests/test_csv_experiment.py --tb=short`:
+  **26 passed** in 16.37s (one upstream warning).
+- Both `mlexp run examples/csv-classification.yaml` and
+  `mlexp run examples/csv-regression.yaml` completed with tracked model artifacts.
+- Current milestone after M2: M3 bounded, training-only parameter selection.
+- M4 clean-wheel installation, independent acceptance, and release documentation
+  remain. No current blocker prevents continuing.
+
 ## 2026-11-03 — M0/M1 implemented and locally verified
 
 - Confirmed the specified remote repository is empty and cloned it into the

@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pytest
 
 from mlexp.config import ExperimentConfig
@@ -14,6 +16,33 @@ def config(tmp_path):
         model="logistic_regression",
         cv_folds=3,
         tracking_uri=f"sqlite:///{(tmp_path / 'tracking.db').as_posix()}",
+    )
+
+
+@pytest.fixture
+def csv_config(config, tmp_path):
+    path = tmp_path / "data.csv"
+    frame = pd.DataFrame(
+        {
+            "number": np.arange(60, dtype=float),
+            "category": ["NA", "south", "north"] * 20,
+            "label": ["yes", "no"] * 30,
+        }
+    )
+    frame.loc[5, "number"] = np.nan
+    frame.loc[8, "category"] = np.nan
+    frame.to_csv(path, index=False)
+    return ExperimentConfig.model_validate(
+        config.model_dump()
+        | {
+            "dataset": {
+                "path": path,
+                "target": "label",
+                "numeric_features": ["number"],
+                "categorical_features": ["category"],
+                "missing_values": "impute",
+            },
+        }
     )
 
 

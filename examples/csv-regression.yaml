@@ -1,0 +1,14 @@
+experiment: csv-regression
+task: regression
+dataset:
+  type: csv
+  path: data/regression.csv
+  target: target
+  numeric_features: [number]
+  categorical_features: [category]
+  missing_values: impute
+model: ridge
+seed: 42
+test_size: 0.2
+cv_folds: 3
+tracking_uri: sqlite:///mlflow.db

@@ -1,6 +1,7 @@
 """Command-line entry points; tracking remains MLflow's responsibility."""
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -42,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
                 with args.output.open("x", encoding="utf-8") as handle:
                     handle.write(content)
                 print(str(args.output))
-    except (OSError, ValueError, yaml.YAMLError, MlflowException) as exc:
+    except (OSError, ValueError, csv.Error, yaml.YAMLError, MlflowException) as exc:
         print(f"mlexp: {exc}", file=sys.stderr)
         return 1
     return 0

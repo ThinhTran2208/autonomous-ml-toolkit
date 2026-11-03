@@ -1,5 +1,9 @@
 # Roadmap and acceptance criteria
 
+The MVP covers M0–M4 below. M0/M1 have local validation evidence; work proceeds
+through M2, M3, then M4 on the persistent `autonomous-dev` branch. Do not add
+features after all MVP acceptance criteria are verified.
+
 ## M0 — Engineering foundation
 
 Acceptance:
@@ -8,7 +12,7 @@ Acceptance:
 - A clean development install succeeds: `python -m pip install -e ".[dev]"`.
 - `ruff check .` and `ruff format --check .` pass.
 
-## M1 — Small functional experiment (current delivery)
+## M1 — Small functional experiment
 
 Acceptance:
 - `mlexp run examples/iris.yaml` and `mlexp run examples/diabetes.yaml` finish on
@@ -61,6 +65,4 @@ Acceptance:
 - Dependency update and compatibility policy, license choice, and release notes
   are recorded before any published release.
 
-Milestones beyond M1 are intentionally deferred until the first complete workflow
-is reliable. Test paths in future milestones describe acceptance tests to add,
-not tests that already exist.
+The progress log records actual verification evidence and remaining limitations.

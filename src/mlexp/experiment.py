@@ -21,7 +21,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import KFold, StratifiedKFold, cross_validate
 
 from mlexp.config import ExperimentConfig
-from mlexp.data import load_split
+from mlexp.data import load_split, take_rows
 from mlexp.models import build_pipeline
 from mlexp.tracking import get_or_create_experiment, local_client
 
@@ -30,7 +30,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
     """Run one fixed model; no tuning or selection consumes held-out data."""
     split = load_split(config)
     train, test = split.train_indices, split.test_indices
-    X_train, y_train = split.X[train], split.y[train]
+    X_train, y_train = take_rows(split.X, train), split.y[train]
     pipeline = build_pipeline(config)
     classification = config.task == "classification"
     splitter = StratifiedKFold if classification else KFold
@@ -46,6 +46,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
         for name in (
             "scikit-learn",
             "numpy",
+            "pandas",
             "scipy",
             "mlflow",
             "pydantic",
@@ -57,10 +58,12 @@ def run_experiment(config: ExperimentConfig) -> dict:
         )
     }
     versions["python"] = platform.python_version()
+    dataset_name = config.dataset if isinstance(config.dataset, str) else "csv"
     manifest = {
-        "dataset": config.dataset,
+        "dataset": dataset_name,
         "dataset_sha256": split.fingerprint,
         "feature_names": split.feature_names,
+        "schema": split.schema,
         "train_indices": train.tolist(),
         "test_indices": test.tolist(),
         "cv_folds": [
@@ -69,7 +72,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
         ],
     }
     protocol = {
-        "protocol_version": 1,
+        "protocol_version": 2,
         "task": config.task,
         "split": manifest,
         "scoring": scoring,
@@ -80,8 +83,8 @@ def run_experiment(config: ExperimentConfig) -> dict:
     experiment_id = get_or_create_experiment(client, config.experiment, config.tracking_uri)
     run = client.create_run(
         experiment_id,
-        tags={"mlexp.comparison_key": comparison_key, "mlexp.protocol_version": "1"},
-        run_name=f"{config.dataset}-{config.model}-seed{config.seed}",
+        tags={"mlexp.comparison_key": comparison_key, "mlexp.protocol_version": "2"},
+        run_name=f"{dataset_name}-{config.model}-seed{config.seed}",
     )
     run_id = run.info.run_id
     try:
@@ -95,7 +98,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
             }.items():
                 (directory / name).write_text(json.dumps(value, indent=2), encoding="utf-8")
                 client.log_artifact(run_id, str(directory / name))
-            params = config.model_dump(exclude={"parameters", "tracking_uri"})
+            params = config.model_dump(mode="json", exclude={"parameters", "tracking_uri"})
             params.update({f"model.{key}": value for key, value in config.parameters.items()})
             params.update({"train_rows": len(train), "test_rows": len(test)})
             # Include defaults as well as explicit overrides for reproducibility.
@@ -118,7 +121,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
                 fold_scores[name] = values.tolist()
             pipeline.fit(X_train, y_train)
             # The only held-out prediction; everything above uses training rows only.
-            predictions = pipeline.predict(split.X[test])
+            predictions = pipeline.predict(take_rows(split.X, test))
             y_test = split.y[test]
             if classification:
                 metrics.update(
@@ -152,6 +155,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
                     for name in (
                         "scikit-learn",
                         "numpy",
+                        "pandas",
                         "scipy",
                         "cloudpickle",
                         "joblib",

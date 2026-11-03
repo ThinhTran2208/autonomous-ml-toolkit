@@ -34,3 +34,20 @@
 
 References: [scikit-learn leakage guidance](https://scikit-learn.org/stable/common_pitfalls.html)
 and [MLflow tracking APIs](https://mlflow.org/docs/latest/ml/tracking/).
+
+## 2026-11-03 — MVP continuation and CSV input
+
+- Use the persistent `autonomous-dev` branch, created from the verified initial
+  implementation. Preserve local history and existing artifacts. Do not publish.
+- Complete the existing M2–M4 roadmap without adding unrelated capabilities.
+- Require explicit numeric/categorical feature lists and a target for CSV input.
+  Exact header/schema matching prevents accidental inclusion of an index or target.
+  Reject malformed records, missing targets, nonnumeric numeric columns, and infinity.
+- Read CSV bytes once for both parsing and fingerprinting. Resolve CSV paths relative
+  to YAML, while tracking database paths remain relative to the working directory.
+- Use a ColumnTransformer inside the pipeline for fold-local median imputation,
+  scaling, categorical missing markers, and one-hot encoding with unknown categories
+  ignored. Preserve all-missing columns; never drop rows or infer feature roles from
+  held-out values. Validation of data types is deterministic schema checking.
+- Advance the evaluation protocol to version 2 to record feature/target schemas.
+  Older runs remain available to reports, but comparisons across protocols are rejected.

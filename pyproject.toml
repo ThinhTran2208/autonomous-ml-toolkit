@@ -12,6 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
   "mlflow>=3.0,<4",
   "numpy>=1.26,<3",
+  "pandas>=2.2,<4",
   "pydantic>=2.10,<3",
   "PyYAML>=6.0.2,<7",
   "scikit-learn>=1.5,<2",
@@ -31,11 +32,13 @@ packages = ["src/mlexp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+cache_dir = ".cache/pytest"
 filterwarnings = ["error::sklearn.exceptions.ConvergenceWarning"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+cache-dir = ".cache/ruff"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
