@@ -65,3 +65,27 @@ and [MLflow tracking APIs](https://mlflow.org/docs/latest/ml/tracking/).
   be compared when data/folds/scoring/environment match. Selected CV scores can be
   optimistic after search; document their limits rather than use final test scores
   for ranking. Older protocol runs are preserved and reportable.
+
+## 2026-11-03 — Independent MVP verification and compatibility
+
+- Version the CSV/search MVP candidate as 0.2.0, retaining the original local
+  0.1.0 history. No package publication is part of this work.
+- Use `scripts/verify.py` as the same local and CI verification entry point. It
+  runs lint/format/source tests, builds distributions, installs the wheel plus
+  pytest into a fresh venv, runs independent built-in acceptance, and exercises
+  CSV CLI smoke/report/compare workflows outside the source working directory.
+- Keep the verifier's evidence and environments in unique ignored `.cache/`
+  directories; preserve previous runs and existing tracking stores.
+- The independent suite does not import application implementation helpers. It
+  tests the installed CLI, real MLflow artifacts, deterministic runs, held-out
+  metric reconstruction, training-only preprocessing statistics, search results,
+  failure behavior, and report overwrite protection.
+- Use current official checkout/setup-python v7 actions with explicit Python
+  targets and read-only repository permissions. A project-local Unicode venv
+  exercises Windows DLL paths. Hosted matrix results must be reported separately
+  from running the shared verification command locally.
+- Limit CI jobs to 20 minutes. actionlint 1.7.12 validates the workflow locally;
+  its release archive was checked against the official checksum before execution.
+- Preserve CSV fields as lexical strings until explicit numeric conversion. This
+  prevents class labels such as `001` and `1`, or `TRUE` and `True`, from collapsing
+  through pandas type inference. Numeric schemas reject textual booleans.

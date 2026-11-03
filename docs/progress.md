@@ -2,6 +2,41 @@
 
 Project status: MVP_IN_PROGRESS
 
+## 2026-11-03 — M4 local verification passed; hosted CI pending
+
+- Prepared version 0.2.0 with API/CLI documentation, contribution instructions,
+  dependency/compatibility policy, release notes, and a shared local/CI verifier.
+- Installed the development package using the README command:
+  `.venv/Scripts/python.exe -X utf8 -m pip install -e '.[dev]'` — succeeded.
+- `.venv/Scripts/python.exe -X utf8 scripts/verify.py` completed successfully.
+  Evidence: `.cache/verification/b42a1d58a1e949b9a1dbfee27d4a6639/result.json`, with
+  per-step logs and a clean wheel environment preserved in that directory.
+- Executed checks in that verifier:
+  - `python -m ruff check .` and `python -m ruff format --check .`: passed.
+  - `python -m pytest --tb=short`: **96 passed**, one upstream deprecation warning.
+  - `python -m build`: source archive and 0.2.0 wheel built successfully.
+  - Fresh standard-library venv + `pip install WHEEL 'pytest>=8.3,<10'`: succeeded;
+    `pip freeze --all` retained as evidence. No system site-packages or editable
+    source paths were used for wheel acceptance.
+  - Independent `python -m pytest acceptance -c pyproject.toml --tb=short` in the
+    fresh wheel environment: **6 passed** in 150.64s, one upstream warning.
+  - Both CSV examples executed from copied configs outside the source working
+    directory, with `run`, `report --output`, and `compare` all succeeding.
+- The first independent run had 3 passing / 3 failing tests due to test harness
+  database selection and Windows isolated-output encoding. Fixed both and reran
+  the entire verification command, with all assertions retained.
+- Added regression coverage for lexical class labels (`001` versus `1`, `TRUE`
+  versus `True`) and textual booleans in numeric features. CSV parsing now preserves
+  lexical identity until explicit schema-driven numeric conversion.
+- actionlint 1.7.12 checked the final workflow successfully. The official release
+  archive checksum was verified before execution. CI invokes the same verifier
+  on Linux Python 3.11/3.12/3.13 and Windows Python 3.12, with 20-minute job limits.
+- Confirmed the supplied origin repository is private and initially has no refs.
+  Synchronizing only `autonomous-dev` will enable actual hosted matrix evidence;
+  repository visibility, main, and release/package publication remain unchanged.
+- Remaining completion gate: actual hosted CI results for the verified code.
+  Keep MVP_IN_PROGRESS until that gate has evidence. No feature expansion remains.
+
 ## 2026-11-03 — M3 training-only model selection completed
 
 - Added validated bounded GridSearchCV over the full preprocessing/model pipeline.

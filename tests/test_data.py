@@ -40,6 +40,7 @@ def test_invalid_csv_schema(csv_config, changes):
         ("number,category\n1,A\n", "target column is absent"),
         ("number,category,label\n1,A,\n", "target contains missing"),
         ("number,category,label\nwrong,A,yes\n", "must contain numeric"),
+        ("number,category,label\nTrue,A,yes\n", "must contain numeric"),
         ("number,category,label\ninf,A,yes\n", "infinite"),
         ("number,category,label,secret\n1,A,yes,2\n", "match the explicit feature schema"),
         ("number,category,label\n1,A,yes,extra\n", "fields; expected"),
@@ -81,3 +82,14 @@ def test_csv_paths_are_relative_to_config(csv_config, tmp_path, monkeypatch):
     loaded = load_config(path)
     assert loaded.dataset.path == csv_config.dataset.path
     assert len(load_split(loaded).y) == 60
+
+
+def test_csv_classification_labels_preserve_lexical_identity(csv_config):
+    labels = ["001", "1", "TRUE", "True"] * 15
+    rows = [f"{index},north,{label}" for index, label in enumerate(labels)]
+    csv_config.dataset.path.write_text(
+        "number,category,label\n" + "\n".join(rows), encoding="utf-8"
+    )
+    split = load_split(csv_config)
+    assert split.y.tolist() == labels
+    assert len(set(split.y)) == 4

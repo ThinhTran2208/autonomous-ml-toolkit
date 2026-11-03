@@ -55,7 +55,9 @@ def load_csv(source: CSVDataConfig, task: str) -> tuple[pd.DataFrame, np.ndarray
         StringIO(text),
         keep_default_na=False,
         na_values=[""],
-        dtype={name: object for name in source.categorical_features},
+        # Preserve lexical labels/categories (e.g. "001" versus "1"). Numeric
+        # conversion happens only where the explicit schema requests it.
+        dtype=object,
     ).replace(r"^\s*$", np.nan, regex=True)
     if frame.empty:
         raise ValueError("CSV contains no data rows")

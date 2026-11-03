@@ -41,6 +41,12 @@ artifacts in `mlartifacts/mlflow/`. Both are ignored by Git. To use another loca
 database, set `tracking_uri` in YAML and pass the same `--tracking-uri` to
 `compare` and `report`. Remote stores and in-memory databases are outside M1.
 
+When upgrading an existing workspace, preserve its tracking store. Version 0.2.0
+uses evaluation protocol 3 and refuses to rank historic runs from another protocol
+or dependency environment. Use a new experiment name or set `tracking_uri` to a
+fresh SQLite database in the new configs and pass that URI to compare/report.
+Existing runs remain available through `report` with their original database URI.
+
 Use MLflow's existing interface for deeper inspection:
 
 ```bash
@@ -184,13 +190,24 @@ python -m pytest
 ruff check .
 ruff format --check .
 python -m build
+python scripts/verify.py
 ```
 
-CI runs tests, lint, formatting, and a package build on Linux Python 3.11, 3.12,
-and 3.13, plus Windows Python 3.12, in Unicode checkout paths. A Windows-only
+`scripts/verify.py` is the shared local/CI acceptance command. It runs source
+checks, builds a wheel, installs it in a fresh environment, runs the independent
+built-in-dataset acceptance suite outside the source tree, and smoke-tests the
+CSV CLI workflows. Logs, environments, stores, and reports are preserved under
+ignored `.cache/verification/` directories. A run succeeds only if every check
+passes. It requires dependency downloads but uses no paid services.
+
+CI targets Linux Python 3.11, 3.12, and 3.13, plus Windows Python 3.12, in Unicode
+checkout paths, using that same command. A Windows-only
 threadpoolctl constraint avoids a verified 3.7 DLL discovery issue in such paths.
 Local test fixtures use temporary tracking databases and never overwrite
 the example store. See [decisions](docs/decisions.md), [progress](docs/progress.md),
 and [engineering instructions](AGENTS.md) before contributing.
+
+See [public API and CLI behavior](docs/api.md), [contribution workflow](CONTRIBUTING.md),
+[compatibility policy](docs/compatibility.md), and [release notes](docs/release-notes.md).
 
 Licensed under the [MIT license](LICENSE).
