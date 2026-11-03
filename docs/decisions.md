@@ -51,3 +51,17 @@ and [MLflow tracking APIs](https://mlflow.org/docs/latest/ml/tracking/).
   held-out values. Validation of data types is deterministic schema checking.
 - Advance the evaluation protocol to version 2 to record feature/target schemas.
   Older runs remain available to reports, but comparisons across protocols are rejected.
+
+## 2026-11-03 — Bounded parameter selection
+
+- Use scikit-learn GridSearchCV over the entire pipeline, with fixed, seeded
+  training-only folds. Use the task's existing primary CV metric and one training
+  refit; reserve the single held-out prediction for final evaluation.
+- Bound grids to 8 values per parameter, 32 candidates, and 128 CV fits plus refit.
+  Reject unknown, invalid, duplicate, empty, or oversized search spaces before work.
+- Preserve requested parameters separately from resolved selected parameters. Track
+  every candidate's fold scores, mean/std, rank, and the refit row count.
+- Protocol version 3 includes this selection contract. Fixed and searched runs may
+  be compared when data/folds/scoring/environment match. Selected CV scores can be
+  optimistic after search; document their limits rather than use final test scores
+  for ranking. Older protocol runs are preserved and reportable.

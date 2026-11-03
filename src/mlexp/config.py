@@ -42,6 +42,23 @@ def validate_parameters(model: str, parameters: dict[str, float | int]) -> None:
             raise ValueError("max_iter must be a positive integer")
 
 
+class SearchConfig(BaseModel):
+    """Small exhaustive search; users cannot raise the CPU work limits."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    parameter_grid: dict[str, list[StrictFloat | StrictInt]] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_size(self):
+        if any(not values or len(values) > 8 for values in self.parameter_grid.values()):
+            raise ValueError("Each search parameter needs 1 to 8 candidate values")
+        if any(len(set(values)) != len(values) for values in self.parameter_grid.values()):
+            raise ValueError("Search candidate values must be unique")
+        if math.prod(len(values) for values in self.parameter_grid.values()) > 32:
+            raise ValueError("Search is limited to 32 candidate combinations")
+        return self
+
+
 class ExperimentConfig(BaseModel):
     """Validated configuration; unknown fields and incompatible models are errors."""
 
@@ -55,6 +72,7 @@ class ExperimentConfig(BaseModel):
     test_size: Annotated[float, Field(strict=True, gt=0, lt=1, allow_inf_nan=False)] = 0.2
     cv_folds: Annotated[StrictInt, Field(ge=2, le=20)] = 5
     parameters: dict[str, StrictFloat | StrictInt] = Field(default_factory=dict)
+    search: SearchConfig | None = None
     tracking_uri: str = "sqlite:///mlflow.db"
 
     @model_validator(mode="after")
@@ -70,6 +88,16 @@ class ExperimentConfig(BaseModel):
         if self.model not in allowed_models[self.task]:
             raise ValueError(f"{self.model} is incompatible with {self.task}")
         validate_parameters(self.model, self.parameters)
+        if self.search is not None:
+            for key, values in self.search.parameter_grid.items():
+                for value in values:
+                    validate_parameters(self.model, {key: value})
+            fits = (
+                math.prod(len(values) for values in self.search.parameter_grid.values())
+                * self.cv_folds
+            )
+            if fits > 128:
+                raise ValueError("Search is limited to 128 cross-validation fits, plus one refit")
         # Tracking is local-only: no implicit remote services or credentials.
         validate_tracking_uri(self.tracking_uri)
         return self

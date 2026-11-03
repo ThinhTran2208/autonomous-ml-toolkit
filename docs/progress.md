@@ -2,6 +2,27 @@
 
 Project status: MVP_IN_PROGRESS
 
+## 2026-11-03 — M3 training-only model selection completed
+
+- Added validated bounded GridSearchCV over the full preprocessing/model pipeline.
+  Search sees only reserved training rows; the selected pipeline gets one training
+  refit and one held-out prediction. Fixed-model behavior remains supported.
+- Logged search grids, scorer, each candidate's fold scores/rank/mean/std, selected
+  parameters, resolved estimator defaults, and refit row count in MLflow.
+- Instrumented tests verify the exact permitted rows and targets in every fit,
+  one held-out prediction per run, and identical selections after adversarial
+  held-out target changes, for classification and regression. Invalid/oversized
+  grids and actual protocol mismatches are rejected.
+- `.venv/Scripts/python.exe -X utf8 -m pytest --tb=short`: **94 passed** in 65.55s,
+  one upstream deprecation warning. No tests were skipped or weakened.
+- Ruff lint passed; `ruff format --check .`: 21 files formatted.
+- `.venv/Scripts/python.exe -X utf8 -m pytest tests/test_selection.py --tb=short`:
+  **19 passed** (one upstream warning).
+- `mlexp run examples/iris-search.yaml` and
+  `mlexp run examples/diabetes-search.yaml`: both FINISHED with selection artifacts.
+- Current milestone: M4 clean-wheel installation, independent acceptance, shared
+  CI verification, and release/contribution documentation. No current blocker.
+
 ## 2026-11-03 — M2 CSV experiments completed
 
 - Created `autonomous-dev` from the existing verified project state; preserved

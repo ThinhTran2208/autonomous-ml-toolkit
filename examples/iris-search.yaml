@@ -1,0 +1,11 @@
+experiment: iris-search
+task: classification
+dataset: iris
+model: logistic_regression
+seed: 42
+test_size: 0.2
+cv_folds: 3
+search:
+  parameter_grid:
+    C: [0.1, 1.0, 10.0]
+tracking_uri: sqlite:///mlflow.db

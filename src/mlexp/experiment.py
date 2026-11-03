@@ -23,11 +23,12 @@ from sklearn.model_selection import KFold, StratifiedKFold, cross_validate
 from mlexp.config import ExperimentConfig
 from mlexp.data import load_split, take_rows
 from mlexp.models import build_pipeline
+from mlexp.selection import fit_search
 from mlexp.tracking import get_or_create_experiment, local_client
 
 
 def run_experiment(config: ExperimentConfig) -> dict:
-    """Run one fixed model; no tuning or selection consumes held-out data."""
+    """Fit a fixed or CV-selected model; held-out data is used only at the end."""
     split = load_split(config)
     train, test = split.train_indices, split.test_indices
     X_train, y_train = take_rows(split.X, train), split.y[train]
@@ -72,7 +73,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
         ],
     }
     protocol = {
-        "protocol_version": 2,
+        "protocol_version": 3,
         "task": config.task,
         "split": manifest,
         "scoring": scoring,
@@ -83,7 +84,7 @@ def run_experiment(config: ExperimentConfig) -> dict:
     experiment_id = get_or_create_experiment(client, config.experiment, config.tracking_uri)
     run = client.create_run(
         experiment_id,
-        tags={"mlexp.comparison_key": comparison_key, "mlexp.protocol_version": "2"},
+        tags={"mlexp.comparison_key": comparison_key, "mlexp.protocol_version": "3"},
         run_name=f"{dataset_name}-{config.model}-seed{config.seed}",
     )
     run_id = run.info.run_id
@@ -98,18 +99,33 @@ def run_experiment(config: ExperimentConfig) -> dict:
             }.items():
                 (directory / name).write_text(json.dumps(value, indent=2), encoding="utf-8")
                 client.log_artifact(run_id, str(directory / name))
-            params = config.model_dump(mode="json", exclude={"parameters", "tracking_uri"})
+            params = config.model_dump(
+                mode="json", exclude={"parameters", "tracking_uri", "search"}
+            )
+            params["selection_method"] = "grid_search" if config.search else "fixed"
             params.update({f"model.{key}": value for key, value in config.parameters.items()})
             params.update({"train_rows": len(train), "test_rows": len(test)})
             # Include defaults as well as explicit overrides for reproducibility.
-            params["resolved_model_parameters"] = json.dumps(
+            params["requested_model_parameters"] = json.dumps(
                 pipeline.named_steps["model"].get_params(), sort_keys=True
             )
             for name, value in params.items():
                 client.log_param(run_id, name, value)
-            scores = cross_validate(
-                pipeline, X_train, y_train, cv=folds, scoring=scoring, n_jobs=1, error_score="raise"
-            )
+            if config.search:
+                pipeline, scores, selection = fit_search(
+                    pipeline, X_train, y_train, folds, scoring, config
+                )
+            else:
+                scores = cross_validate(
+                    pipeline,
+                    X_train,
+                    y_train,
+                    cv=folds,
+                    scoring=scoring,
+                    n_jobs=1,
+                    error_score="raise",
+                )
+                selection = {"method": "fixed", "selected_parameters": config.parameters}
             metrics = {}
             fold_scores = {}
             for name in scoring:
@@ -119,7 +135,19 @@ def run_experiment(config: ExperimentConfig) -> dict:
                 metrics[f"cv_{name}"] = float(np.mean(values))
                 metrics[f"cv_{name}_std"] = float(np.std(values))
                 fold_scores[name] = values.tolist()
-            pipeline.fit(X_train, y_train)
+            if config.search is None:
+                pipeline.fit(X_train, y_train)
+            client.log_param(
+                run_id,
+                "resolved_model_parameters",
+                json.dumps(pipeline.named_steps["model"].get_params(), sort_keys=True),
+            )
+            for key, value in selection["selected_parameters"].items():
+                client.log_param(run_id, f"selected.{key}", value)
+            (directory / "selection.json").write_text(
+                json.dumps(selection, indent=2), encoding="utf-8"
+            )
+            client.log_artifact(run_id, str(directory / "selection.json"))
             # The only held-out prediction; everything above uses training rows only.
             predictions = pipeline.predict(take_rows(split.X, test))
             y_test = split.y[test]

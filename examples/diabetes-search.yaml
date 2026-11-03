@@ -1,0 +1,11 @@
+experiment: diabetes-search
+task: regression
+dataset: diabetes
+model: ridge
+seed: 42
+test_size: 0.2
+cv_folds: 3
+search:
+  parameter_grid:
+    alpha: [0.1, 1.0, 100.0]
+tracking_uri: sqlite:///mlflow.db

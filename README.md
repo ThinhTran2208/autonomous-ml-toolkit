@@ -116,6 +116,35 @@ tabular datasets; very high-cardinality data is outside this MVP.
 CSV bytes are read once and fingerprinted together with the explicit schema.
 The target/feature schema is recorded in the MLflow split and protocol artifacts.
 
+## Training-only parameter search
+
+Add an optional search grid using the same model parameter names:
+
+```yaml
+search:
+  parameter_grid:
+    C: [0.1, 1.0, 10.0]
+```
+
+```bash
+mlexp run examples/iris-search.yaml
+mlexp run examples/diabetes-search.yaml
+```
+
+The grid is limited to 8 distinct values per parameter, 32 combinations, and
+128 CV fits plus one final refit. It uses the reserved training rows exclusively,
+with a freshly fitted preprocessing pipeline in every fold. Selection maximizes
+CV accuracy for classification and minimizes CV RMSE for regression. Ties retain
+scikit-learn's deterministic candidate order. Grid values override corresponding
+fixed `parameters`; dummy models have no searchable parameters.
+
+The selected estimator is refitted once on all training rows and evaluated on
+held-out rows once. `selection.json` records the grid, scorer, all candidate fold
+scores, ranks, chosen parameters, and refit row count. `cv_*` values describe the
+chosen candidate; searching can make these scores optimistic, so they are selection
+statistics rather than an unbiased generalization estimate. Reports retain final
+test scores for final assessment only. No search parameter can reference them.
+
 ## Evaluation and reproducibility
 
 1. Load data without learned preprocessing. Diabetes uses `scaled=False` to avoid
@@ -136,7 +165,7 @@ rows. Every classification training class needs at least `cv_folds` rows.
 folds, scoring protocol, and recorded dependency versions. Use separate experiment
 names for different protocols. Its ordering never uses test metrics. These small
 toy datasets demonstrate the workflow; their scores are not evidence of broad
-model quality. M1 does not perform hyperparameter search.
+model quality.
 
 **Test scores are final evaluation only.** Do not choose models, parameters,
 features, or thresholds from them. If you iterate after viewing test results,
