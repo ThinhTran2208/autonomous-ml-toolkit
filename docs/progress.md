@@ -2,6 +2,21 @@
 
 Project status: MVP_IN_PROGRESS
 
+## 2026-11-03 — Hosted CI exposed a verifier output regression
+
+- Synchronized verified commit `cb68386` to the existing private
+  `origin/autonomous-dev`. No main ref, visibility setting, or release was changed.
+- [Hosted CI run](https://github.com/ThinhTran2208/autonomous-ml-toolkit/actions/runs/41672870995):
+  Linux Python 3.11/3.12/3.13 jobs passed. Windows passed source tests, wheel build,
+  isolated acceptance, and both CSV run/report/compare workflows, then failed while
+  printing the final Unicode evidence path under its redirected cp1252 console.
+- Fixed the verifier to escape otherwise unrepresentable console characters,
+  retaining UTF-8 log files and all checks. Added real text-stream regression tests
+  for ASCII, cp1252, and UTF-8. Hosted revalidation remains required before completion.
+- `.venv/Scripts/python.exe -X utf8 -m pytest --tb=short`: **99 passed** in 57.33s
+  after the fix, including all three console-encoding regressions. Ruff lint and
+  formatting checks passed. No application checks were bypassed or disabled.
+
 ## 2026-11-03 — M4 local verification passed; hosted CI pending
 
 - Prepared version 0.2.0 with API/CLI documentation, contribution instructions,

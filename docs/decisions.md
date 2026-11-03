@@ -89,3 +89,6 @@ and [MLflow tracking APIs](https://mlflow.org/docs/latest/ml/tracking/).
 - Preserve CSV fields as lexical strings until explicit numeric conversion. This
   prevents class labels such as `001` and `1`, or `TRUE` and `True`, from collapsing
   through pandas type inference. Numeric schemas reject textual booleans.
+- The verification runner preserves the console encoding and escapes unsupported
+  characters when reporting Unicode paths. This fixes redirected Windows cp1252
+  output without requiring UTF-8 shell configuration or weakening verification.

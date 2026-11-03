@@ -16,7 +16,15 @@ import venv
 from pathlib import Path
 
 
+def _configure_console() -> None:
+    """Keep Unicode paths reportable when a redirected console uses legacy encoding."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="backslashreplace")
+
+
 def main() -> int:
+    _configure_console()
     root = Path(__file__).resolve().parents[1]
     output = root / ".cache" / "verification" / uuid.uuid4().hex
     output.mkdir(parents=True)
