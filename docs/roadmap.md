@@ -4,6 +4,8 @@ The original MVP covers M0–M4 below and has verified completion evidence.
 The user subsequently authorized M5: dataset-agnostic CSV assurance and explicit
 validation partitions, within the same tabular MVP scope. The persistent
 source-of-truth branch remains `autonomous-dev`. See docs/progress.md for status.
+M0–M5 are now verified complete. Further feature work requires a new authorized
+milestone; existing datasets, runs, and local completion tags are preserved.
 
 ## M0 — Engineering foundation
 

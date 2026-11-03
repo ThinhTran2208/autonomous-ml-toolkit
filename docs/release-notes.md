@@ -1,6 +1,6 @@
 # Release notes
 
-## 0.3.0 — Dataset-agnostic CSV assurance (unpublished)
+## 0.3.0 — Verified dataset-agnostic CSV assurance (unpublished)
 
 - YAML-configurable separate validation fraction and logged validation metrics;
   CV/search/preprocessing/final refit remain confined to training rows.

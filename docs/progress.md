@@ -1,6 +1,38 @@
 # Progress
 
-Project status: DATASET_AGNOSTIC_IN_PROGRESS
+Project status: MVP_COMPLETE
+
+## 2026-11-04 — M5 completed and verified
+
+All M5 acceptance criteria in docs/roadmap.md passed. Arbitrary compatible tabular
+CSVs use the same YAML-configured loader and pipeline for either task. Separate
+validation and test partitions never enter preprocessing, CV, search, or refit.
+
+[Successful M5 CI run](https://github.com/ThinhTran2208/autonomous-ml-toolkit/actions/runs/41679957431)
+verified code commit `1ae6f1df324ec50bb41b8cacbeb793a1bf2cbaf0` on every target:
+
+| Hosted target | Actual result |
+| --- | --- |
+| Linux Python 3.11 | Passed |
+| Linux Python 3.12 | Passed |
+| Linux Python 3.13 | Passed |
+| Windows Python 3.12, Unicode checkout and environment | Passed |
+
+Each job passed the shared `python scripts/verify.py`: Ruff lint/format, all
+113 source tests, distribution build, clean-wheel install, all 9 independent
+acceptance tests, and both CSV run/report/compare smoke workflows. The complete
+local Windows command and timing evidence are recorded below. No assertions,
+checks, or datasets were replaced to obtain passing results.
+
+- Verified implementation is synchronized to `origin/autonomous-dev`.
+- This completion update changes documentation only; application/tests/verifier/CI
+  match the verified implementation commit. Local completion tag: `mvp-v0.3.0`.
+- No unresolved blockers. California Housing acceptance needs network access on
+  its first run, then uses the ignored cache; normal CSV experiments stay local.
+  The upstream MLflow/SQLAlchemy deprecation warning remains visible and nonblocking.
+- No datasets, credentials, model artifacts, remote tags, main changes, or package
+  releases were pushed. Existing stores, history, and the original local tag remain.
+- M0–M5 are complete. Feature work is stopped until another milestone is authorized.
 
 ## 2026-11-03 — Authorized M5 dataset-agnostic assurance
 
@@ -33,14 +65,20 @@ Original M0–M4 completion evidence below is preserved.
 - Final `python -m ruff check .`, `python -m ruff format --check .`, and
   `git diff --check` passed. No new datasets, stores, serialized models, or local
   environment artifacts are included in the changes.
-- Local M5 acceptance is complete. Remote synchronization and hosted results
-  remain pending; no feature work remains and no current blocker was encountered.
+- Local M5 acceptance is complete. Verified implementation commit
+  `1ae6f1df324ec50bb41b8cacbeb793a1bf2cbaf0` was synchronized successfully using
+  `git push origin autonomous-dev` on 2026-11-04. The remote branch matches the local
+  commit. No main branch, remote tag, dataset, or model artifact was pushed.
+- [Hosted M5 CI run](https://github.com/ThinhTran2208/autonomous-ml-toolkit/actions/runs/41679957431)
+  passed the shared verifier on Linux Python 3.11/3.12/3.13 and Windows 3.12.
+  No feature work remains and no blocker was encountered.
 
 
 ## 2026-11-03 — MVP completion verified
 
 All M0–M4 acceptance criteria have verification evidence. Feature work is stopped.
-No subsequent development milestone is authorized.
+No subsequent milestone was authorized at that point; M5 was authorized later,
+as recorded above.
 
 Verified code commit: `464af58eda84ab45a906cf00adc2370fc7229bcc` on `autonomous-dev`.
 [Successful hosted CI run](https://github.com/ThinhTran2208/autonomous-ml-toolkit/actions/runs/41674892421)
