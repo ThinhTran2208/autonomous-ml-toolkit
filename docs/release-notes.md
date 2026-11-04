@@ -1,15 +1,6 @@
 # Release notes
 
-## Post-0.3.0 — F-01 fix (unpublished)
-
-- Preserve the CLI console encoding and escape unrepresentable output characters.
-  Writing a report to a Unicode path now returns success under redirected ASCII
-  and cp1252 output; UTF-8 output continues to display the original path.
-- Keep UTF-8 report content and exclusive creation/overwrite protection unchanged.
-- The historical v0.3.0 independent audit remains CONDITIONAL PASS. This developer
-  fix and its regression verification do not constitute a new independent audit.
-
-## 0.3.0 — Verified dataset-agnostic CSV assurance (unpublished)
+## 0.3.0 — Stable MVP with dataset-agnostic CSV assurance
 
 - YAML-configurable separate validation fraction and logged validation metrics;
   CV/search/preprocessing/final refit remain confined to training rows.
@@ -19,6 +10,19 @@
   and California Housing CSVs, mixed features/missing values, and metric oracles.
 - Targeted leakage and reproducibility tests for fixed and searched models on both tasks.
 - California Housing acceptance downloads are cached locally and excluded from Git.
+- Include the F-01 correction in this initial v0.3.0 release; version 0.3.0 had
+  not previously been officially published. Preserve the CLI console encoding
+  and escape unrepresentable output characters. Writing a report to a Unicode
+  path returns success under redirected ASCII and cp1252 output; UTF-8 output
+  continues to display the original path. UTF-8 report content and exclusive
+  creation/overwrite protection are unchanged.
+
+Audit scope: the [historical independent audit](audits/mvp-v0.3.0-independent-audit.md)
+returned **CONDITIONAL PASS**, with the Low severity F-01 finding. Its report is
+preserved unchanged. The subsequent independent focused re-audit of implementation
+commit `59c9a5fe1702b5b85c17ccf55871f1c977bcb1de` returned **PASS**, as confirmed
+in the release authorization. This release preparation changes documentation only;
+it is not a new independent code audit and does not expand the audited MVP scope.
 
 ## 0.2.0 — Verified MVP (unpublished)
 

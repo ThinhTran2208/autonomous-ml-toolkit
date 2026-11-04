@@ -2,6 +2,96 @@
 
 Project status: MVP_COMPLETE
 
+## 2026-11-04 — Cross-drive environment diagnosis and release verification
+
+- Reproduced the known failure using the isolated worktree's own Python 3.12.10
+  interpreter and pip 25.0.1. `direct_url.json` and the editable `.pth` correctly
+  referenced that worktree; there were no pip configuration overrides or inherited
+  Python/pip/virtual-environment settings causing source-path contamination.
+- Inspected installed pip's `Git.get_subdirectory`: it uses the parent of
+  `git rev-parse --git-dir` as a root, then calls `os.path.relpath`. The source
+  worktree and shared Git metadata are on different drives, causing the observed
+  `ValueError`. The direct pip subprocess returned **2**; the initial diagnostic
+  helper expected 1 and was corrected to record the actual nonzero exit and exact
+  exception. This diagnostic correction changed no project verification criterion.
+- Preserved every prior checkout, virtual environment, uncommitted document, audit
+  report, and incomplete verification log. Created a separate isolated checkout
+  of the same repository at approved implementation
+  `59c9a5fe1702b5b85c17ccf55871f1c977bcb1de`, with its own Git metadata and new
+  `.venv` colocated on one drive. Copied the corrected release documentation;
+  no production, test, dependency, package-version, or historical-audit file changed.
+- Documented setup `python -m venv .venv` followed by
+  `.venv/Scripts/python.exe -X utf8 -m pip install -e '.[dev]'` succeeded (exit 0).
+  The fresh environment retains pip **25.0.1**; no pip upgrade or patch was needed.
+- `.venv/Scripts/python.exe -X utf8 -m pip check` and `pip freeze --all` both
+  returned **0**. Metadata and import assertions returned **0**, confirming the
+  editable URL, `.pth` import, and Python prefix refer to the new release checkout,
+  version remains **0.3.0**, and pip detects no project subdirectory.
+- Diagnostic metadata, known-failure stdout/stderr, preservation hashes, source
+  installation logs, full freeze, and exact commands/exit codes are retained in
+  `.cache/release-preparation/` in the new checkout. Environment checks are recorded
+  as PASSED in `environment-check.json`.
+- `.venv/Scripts/python.exe -X utf8 scripts/verify.py` completed with **exit 0**.
+  All **13 steps passed**: Ruff lint/format, **119 source tests** (86.11 seconds),
+  sdist and wheel builds, fresh wheel installation, wheel `pip freeze --all`,
+  **10 installed-wheel acceptance tests** (363.74 seconds), and classification
+  and regression CSV `run`, `report --output`, and `compare` smoke commands.
+  All six smoke commands returned **0**. The existing upstream SQLAlchemy
+  deprecation warning remains visible; no test or verification criterion changed.
+- Full command arrays, per-step exit codes, durations, stdout/stderr, package
+  freeze, and fresh wheel environment are preserved under
+  `.cache/verification/6c94329712384cd4ae96d75a379de187/`; `result.json` is **PASSED**.
+  The additional wheel environment `python -X utf8 -m pip check` returned **0**.
+  `.cache/release-preparation/local-summary.json` records completion of every
+  required verifier step and confirms preserved original document hashes.
+- Release identity checks passed: only `docs/release-notes.md` and this progress
+  log differ from the approved implementation; all eight wheel Python modules
+  match the checkout byte-for-byte, and their Git blob identities match the
+  approved commit. Package version remains **0.3.0**. The wheel SHA-256 is
+  `6d81e6d8ccf62ff1fa5a21fab3c948bb9aa1906ca5d849f6b47e71cecdd8a112`, identical
+  to the wheel recorded by the focused re-audit. The historical audit is unchanged.
+- This documentation-only release preparation records the initial v0.3.0 release
+  decision and existing audit scope; it is not a new independent code audit.
+  Hosted CI must succeed for the exact documentation commit before promotion
+  to `main` and the annotated `v0.3.0` tag. No package or GitHub Release publication
+  is authorized.
+
+## 2026-11-04 — Initial v0.3.0 documentation preparation (environment blocker)
+
+- Reconfirmed with `git ls-remote --symref origin HEAD refs/heads/autonomous-dev
+  refs/heads/main refs/tags/v0.3.0 'refs/tags/v0.3.0^{}'` that the development
+  tip is approved implementation `59c9a5fe1702b5b85c17ccf55871f1c977bcb1de`;
+  remote `main` and release tag `v0.3.0` are absent. GitHub metadata confirmed
+  default `autonomous-dev`, private visibility, and no GitHub Releases.
+- Created an isolated clean worktree and local `codex/prepare-v0.3.0` task branch
+  from that SHA. Preserved the original checkout's uncommitted progress entry,
+  prior verification branch, and the separate focused re-audit's untracked report
+  and ignored evidence. No stash, reset, deletion, or audit modification occurred.
+- Updated only release documentation: merged F-01 into the initial 0.3.0 notes
+  and recorded the historical CONDITIONAL PASS and subsequent focused PASS.
+  The historical audit's SHA-256 remains
+  `ed910a1bc8140a276fd04e565a5048b0b218af20b566378bdbe8718aa56bd096`.
+  The documentation preparation is not a new independent code audit.
+- `python -m venv .venv` and `.venv/Scripts/python.exe -X utf8 -m pip install
+  -e '.[dev]'` succeeded. `pip check` passed; an isolated editable import resolved
+  to this worktree's source and confirmed version 0.3.0. A setup interpreter-path
+  print initially hit the primary checkout's legacy console encoding; its explicit
+  `-X utf8` rerun succeeded without changing any project file.
+- `.venv/Scripts/python.exe -X utf8 scripts/verify.py` passed Ruff lint and format
+  checks. Source pytest was still running when the separate environment snapshot
+  command `.venv/Scripts/python.exe -X utf8 -m pip freeze --all` failed: pip 25.0.1
+  raised `ValueError: path is on mount 'c:', start on mount 'D:'` while resolving
+  the editable package in the cross-drive Git worktree. This is an environment
+  verification blocker; no workaround or verification bypass was applied.
+- Stopped the owned verifier process tree per the user's stop-on-failure rule.
+  Its incomplete logs remain under
+  `.cache/verification/7d9d32c34d334734979991a0c4085859/`; the retained RUNNING
+  result is not a PASS. Full source pytest, packaging, fresh-wheel acceptance,
+  CLI smoke tests, and candidate CI are not claimed complete.
+- `git diff --check` passed. The worktree changes remain uncommitted and limited
+  to `docs/release-notes.md` and this log. No release candidate commit, push,
+  stable branch, release tag, default-branch change, or publication was performed.
+
 ## 2026-11-04 — F-01 Unicode CLI output-path fix
 
 Addressed the Low severity finding from the retained v0.3.0 independent audit on
