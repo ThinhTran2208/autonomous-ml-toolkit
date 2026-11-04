@@ -2,6 +2,152 @@
 
 Project status: MVP_COMPLETE
 
+## 2026-11-04 — F-01 Unicode CLI output-path fix
+
+Addressed the Low severity finding from the retained v0.3.0 independent audit on
+`autonomous-dev`. Existing history, audit text, generated data, and tracking stores
+are preserved. The historical verdict remains **CONDITIONAL PASS**; this developer
+fix is not a new independent audit, release, or milestone. No main update is part
+of this work.
+
+Root cause: after exclusive UTF-8 report creation succeeded, printing its Unicode
+path to strict cp1252 stdout raised `UnicodeEncodeError`. The CLI's `ValueError`
+handler then returned 1 for a successful write. At CLI entry, preserve stdout and
+stderr encodings and configure `backslashreplace` for streams supporting
+`reconfigure`. Unsupported console characters remain visible as escapes; UTF-8
+output remains intact. Report content, filesystem paths, and exclusive `open("x")`
+creation are unchanged. Other I/O errors still return failure.
+
+Regression evidence:
+
+- Added six real-text-stream cases: ASCII/Unicode filenames crossed with ASCII,
+  cp1252, and UTF-8 encodings. Before the fix, the Unicode ASCII/cp1252 cases
+  failed (2 failed, 4 passed); after the fix all six passed. They verify exit 0,
+  exact displayed paths, original Unicode content, retained encoding, and exit 1
+  with unchanged bytes on retry.
+- Added installed-wheel subprocess acceptance for the same six combinations with
+  `PYTHONUTF8=0`, explicit `PYTHONIOENCODING`, byte-identical UTF-8 reports, and
+  overwrite protection. The first run caught a test expectation using forward
+  slashes instead of Windows-native separators. Corrected it to `str(Path(output))`;
+  an immediate lint run caught a 101-character line, which was wrapped before
+  restarting complete verification. No acceptance condition was removed.
+- `.venv/Scripts/python.exe scripts/verify.py` initially passed Ruff, all **119**
+  source tests (138.28 seconds, one existing upstream SQLAlchemy warning), the
+  sdist/wheel build, fresh wheel installation, and dependency freeze before the
+  test expectation failure above. Initial evidence is retained under
+  `.cache/verification/18594dfc04ed4bcf9a96792de915dd6d/`; the lint-only diagnostic
+  is retained under `.cache/verification/e65ba83d6aaf406ba69e39a71b1b3d4f/`.
+- The corrected full verifier rerun passed lint/format, **119 source tests**
+  (167.91 seconds, one existing upstream warning), build, fresh wheel install,
+  dependency freeze, and `pip check`. Its process was interrupted during
+  acceptance after eight passing cases, leaving an incomplete RUNNING log under
+  `.cache/verification/e916f60506494cfcab400d7ec8e513d2/`. This is not claimed as
+  a completed successful verifier run.
+- Executed `.venv/Scripts/python.exe .cache/f01-20261104/finish_verification.py`
+  to rerun the entire installed-wheel acceptance suite in that fresh environment
+  from a new directory outside the checkout: **10 passed**, one existing upstream
+  warning, **527.01 seconds**. All assertions and datasets were retained.
+  Evidence is recorded separately under
+  `.cache/f01-20261104/completion-0c1699be62014b49a13216c829b4c364/`.
+- That completion helper also passed both documented CSV examples' installed-wheel
+  `run`, `report --output`, and `compare` commands from outside the checkout:
+  **all six smoke commands returned 0**. Its final `result.json` is **PASSED**.
+  Final `.venv/Scripts/ruff.exe check .`, `ruff format --check .` (30 files),
+  and `git diff --check` passed. Source, regression, packaging, dependency,
+  acceptance, and CLI checks are complete; the interrupted original verifier
+  log remains preserved rather than relabeled as passing.
+- The fresh wheel environment's `python -m pip check` passed. All eight Python
+  modules in the exact `ml_experiment_evaluation_toolkit-0.3.0-py3-none-any.whl`
+  match source bytes. An initial wildcard integrity check selected an older
+  retained wheel; selecting the exact versioned artifact corrected that probe.
+- Ran `.cache/f01-20261104/reproduce.py` with the fresh wheel interpreter and CLI
+  against the independent audit's retained `binary-search` run and SQLite store.
+  All six ASCII/Unicode filename and ASCII/cp1252/UTF-8 cases returned **0**;
+  all retries returned **1** without changing bytes. All six files exactly match
+  the original audit's report, SHA-256
+  `d1c06a9a664055a8cc7be0cd5fd4158240aadb09b3db36dcfa869e98a7a9f6cc`.
+  New filenames preserve the original evidence. Results and commands are retained
+  in `.cache/f01-20261104/results-62512be4f4984b2c847678b6ea116c69.json`
+  and `reproduce.py`; the historical reproduction script/results are unchanged.
+
+Limitations remain the existing CPU-only IID tabular/local-tracking scope and
+dependency/platform reproducibility boundaries. Legacy consoles display escapes
+for characters they cannot encode; report files retain their original Unicode.
+Local evidence applies to Windows/Python 3.12.10. Hosted verification is performed
+by the unchanged [CI workflow on autonomous-dev](https://github.com/ThinhTran2208/autonomous-ml-toolkit/actions?query=branch%3Aautonomous-dev);
+its result must be checked for the pushed commit separately from local evidence.
+The existing upstream MLflow/SQLAlchemy deprecation warning is not suppressed.
+
+## 2026-11-04 — Independent audit of the v0.3.0 MVP
+
+Completed the separately requested audit of commit
+`67f9634450c55ba441c3195454cafd45546d6114`. The report is
+[docs/audits/mvp-v0.3.0-independent-audit.md](audits/mvp-v0.3.0-independent-audit.md).
+Its verdict is **CONDITIONAL PASS**, with **one Low severity finding**: redirected
+cp1252 output can make `mlexp report` return failure after successfully writing a
+report whose output path contains Unicode. No blocking correctness, preprocessing
+leakage, selection, or reproducibility defect was found in the exercised scope.
+The report recommends fixing or documenting the UTF-8 workaround before broader
+use or unconditional promotion. No implementation changes or promotion were made;
+the existing project completion status above is unchanged.
+
+Executed evidence, separate from the original development verification:
+
+- `.venv/Scripts/python.exe -X utf8 -m pytest --tb=short`: **113 passed**, one
+  visible upstream SQLAlchemy deprecation warning, **116.84 seconds**.
+- `.venv/Scripts/ruff.exe check .`: **passed**;
+  `.venv/Scripts/ruff.exe format --check .`: **29 files already formatted**.
+  After the audit document was added, its Python reproduction block initially
+  needed formatting. Corrected that block and reran both checks: **lint passed;
+  30 files already formatted**. `git diff --check` also passed.
+- `.venv/Scripts/python.exe -X utf8 -m build --outdir
+  .cache/independent-audit-20261104/dist`: **sdist and wheel built**. All eight
+  wheel Python modules match the inspected source byte-for-byte.
+- Standard-library `venv` created separate editable and wheel environments under
+  the ignored audit directory. The README `python -m pip install -e '.[dev]'`
+  installation and `python -m pip install` of the built wheel both **succeeded**.
+  Both environments passed `python -m pip check`; complete freezes are retained.
+- Fresh installations resolved **MLflow 3.18.0**, compared with **3.17.2** in the
+  source-test environment. No dependency requirement was changed. All environments
+  used Windows/Python **3.12.10** and the declared Windows threadpoolctl bound.
+- Independently authored `audit_probe.py`, run using the fresh wheel interpreter:
+  **18 probe groups passed; 1 failed**, exposing the Unicode CLI finding above.
+  Four new synthetic CSV datasets passed explicit metric oracles, split/fold
+  reconstruction, training-statistic checks, unseen-category handling, fixed/search
+  workflows and held-out perturbations. All reconstructed metric differences were
+  **0.0**. Repeated binary/regression searches matched all metrics and six metadata
+  artifacts exactly. Instrumentation observed 12 training-fold fits, one training
+  refit, and one prediction each for validation and test.
+- Additional isolated probes exercised single-type/all-missing features, malformed
+  CSV/configuration, an injected model-artifact failure, incomplete-run exclusion,
+  CV-only ranking, report contents/overwrite protection, and relative/absolute
+  paths. Fresh editable and wheel `mlexp run`, `compare`, and `report` workflows
+  succeeded from separate working directories.
+- A focused console reproduction confirmed: ASCII path/cp1252 returns **0**;
+  Unicode path/cp1252 returns **1** after writing; Unicode path/UTF-8 returns **0**.
+  All three created report files have identical bytes.
+- A random-label/unique-ID dataset achieved training accuracy **1.0** but only
+  **0.525** CV/validation/test accuracy. Deliberately duplicated entities and a
+  target-copy predictor produced perfect scores, confirming documented dataset
+  risks rather than row-index leakage. Constant-target regression and a saved
+  configuration replay passed; replayed metrics differed by **0.0**.
+- The initial edge harness mislabeled a correct NUL-bearing numeric-field rejection
+  as a failure. Its expectation was corrected and independently rerun; invalid
+  numeric input is rejected and categorical/target lexical identities are preserved.
+  The original diagnostic evidence remains retained. Project tests were not changed.
+
+Raw commands, transcripts, new CSVs, isolated stores, artifacts, environments and
+audit scripts are preserved under ignored `.cache/independent-audit-20261104/`.
+Only this progress entry and the audit report are deliverable repository changes.
+No existing data was deleted, no production code or acceptance criterion was changed,
+and no commit, push, merge, or main update was performed.
+
+Limitations: this audit personally executed Windows/Python 3.12 only. Hosted CI,
+Linux/Python 3.11/3.13, other dependency combinations, and cross-platform numerical
+identity are **NOT VERIFIED** here. Existing CI claims were treated as historical
+evidence. The original California Housing download and full verifier were not rerun;
+the independent synthetic-data and fresh-install probes supplied new evidence.
+
 ## 2026-11-04 — M5 completed and verified
 
 All M5 acceptance criteria in docs/roadmap.md passed. Arbitrary compatible tabular

@@ -15,6 +15,10 @@ from mlexp.tracking import DEFAULT_TRACKING_URI, compare_runs, render_report
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Preserve the console encoding while making Unicode paths safe to display.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="backslashreplace")
     parser = argparse.ArgumentParser(
         prog="mlexp", description="Reproducible tabular ML experiments"
     )

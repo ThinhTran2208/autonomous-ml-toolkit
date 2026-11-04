@@ -1,10 +1,42 @@
+import io
 import json
 import subprocess
 import sys
 
+import pytest
 import yaml
 
 from mlexp.cli import main
+
+
+@pytest.mark.parametrize("encoding", ["ascii", "cp1252", "utf-8"])
+@pytest.mark.parametrize("filename", ["report.md", "report-試験-é.md"])
+def test_report_output_encoding(encoding, filename, tmp_path, monkeypatch):
+    content = "# Report\nOriginal Unicode content: 試験 café\n"
+    monkeypatch.setattr("mlexp.cli.render_report", lambda *_: content)
+    stdout_bytes, stderr_bytes = io.BytesIO(), io.BytesIO()
+    stdout = io.TextIOWrapper(stdout_bytes, encoding=encoding, errors="strict")
+    stderr = io.TextIOWrapper(stderr_bytes, encoding=encoding, errors="strict")
+    monkeypatch.setattr(sys, "stdout", stdout)
+    monkeypatch.setattr(sys, "stderr", stderr)
+    destination = tmp_path / "reports" / filename
+    args = ["report", "completed-run", "--output", str(destination)]
+
+    assert main(args) == 0
+    stdout.flush()
+    stderr.flush()
+    expected_path = str(destination).encode(encoding, errors="backslashreplace").decode(encoding)
+    assert stdout_bytes.getvalue().decode(encoding).splitlines() == [expected_path]
+    assert stderr_bytes.getvalue() == b""
+    assert stdout.encoding == stderr.encoding == encoding
+    assert destination.read_text(encoding="utf-8") == content
+    original = destination.read_bytes()
+
+    assert main(args) == 1
+    stderr.flush()
+    assert "mlexp:" in stderr_bytes.getvalue().decode(encoding)
+    assert "Traceback" not in stderr_bytes.getvalue().decode(encoding)
+    assert destination.read_bytes() == original
 
 
 def test_run_compare_report_cli(config, tmp_path, capsys):

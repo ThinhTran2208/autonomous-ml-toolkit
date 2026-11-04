@@ -92,6 +92,44 @@ def test_wheel_import_is_isolated_from_checkout(cli, tmp_path):
     assert "run,compare,report" in invoke(cli, tmp_path, "--help")
 
 
+def test_report_output_legacy_encodings(cli, tmp_path):
+    path = write_config(tmp_path, "classification", "iris", "dummy")
+    result = json.loads(invoke(cli, tmp_path, "run", path))
+    arguments = ["report", result["run_id"], "--tracking-uri", "sqlite:///acceptance.db"]
+    original = invoke(cli, tmp_path, *arguments)
+    report_bytes = set()
+    for encoding in ("ascii", "cp1252", "utf-8"):
+        for filename in ("report.md", "report-試験-é.md"):
+            output = f"reports/{encoding}/{filename}"
+            environment = os.environ | {
+                "PYTHONIOENCODING": encoding,
+                "PYTHONUTF8": "0",
+                "PYTHONNOUSERSITE": "1",
+                "MLFLOW_DISABLE_AGENT_HINT": "1",
+                "MLFLOW_ENABLE_TELEMETRY": "false",
+            }
+            command = [str(cli), *arguments, "--output", output]
+            completed = subprocess.run(
+                command, cwd=tmp_path, env=environment, capture_output=True, timeout=120
+            )
+            assert completed.returncode == 0, completed.stderr
+            native_path = str(Path(output))
+            expected = native_path.encode(encoding, errors="backslashreplace").decode(encoding)
+            assert completed.stdout.decode(encoding).splitlines() == [expected]
+            assert b"UnicodeEncodeError" not in completed.stderr
+            destination = tmp_path / output
+            assert destination.read_text(encoding="utf-8") == original
+            saved = destination.read_bytes()
+            report_bytes.add(saved)
+            retry = subprocess.run(
+                command, cwd=tmp_path, env=environment, capture_output=True, timeout=120
+            )
+            assert retry.returncode == 1
+            assert b"mlexp:" in retry.stderr and b"Traceback" not in retry.stderr
+            assert destination.read_bytes() == saved
+    assert len(report_bytes) == 1
+
+
 @pytest.mark.parametrize(
     "task,dataset,model,metric",
     [

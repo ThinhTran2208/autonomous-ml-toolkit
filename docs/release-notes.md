@@ -1,5 +1,14 @@
 # Release notes
 
+## Post-0.3.0 — F-01 fix (unpublished)
+
+- Preserve the CLI console encoding and escape unrepresentable output characters.
+  Writing a report to a Unicode path now returns success under redirected ASCII
+  and cp1252 output; UTF-8 output continues to display the original path.
+- Keep UTF-8 report content and exclusive creation/overwrite protection unchanged.
+- The historical v0.3.0 independent audit remains CONDITIONAL PASS. This developer
+  fix and its regression verification do not constitute a new independent audit.
+
 ## 0.3.0 — Verified dataset-agnostic CSV assurance (unpublished)
 
 - YAML-configurable separate validation fraction and logged validation metrics;
