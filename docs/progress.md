@@ -2,6 +2,56 @@
 
 Project status: MVP_COMPLETE
 
+## 2026-11-05 — PUBLISH-01 screenshot attribution follow-up
+
+- Continued the prior publication review under explicit authorization to make
+  the minimal documentation fix, submit it through `autonomous-dev` and a PR,
+  verify CI/new publication surfaces, and change visibility only after clearance.
+  Read AGENTS.md, roadmap, decisions, progress, and the retained review evidence.
+- Rechecked `git status --short`, branches/remotes/worktrees, `git fetch origin`,
+  and `git ls-remote --symref origin`. Main was
+  `2f460d431368a7db241f41ddcd9617c583c57196`; development was
+  `615ddc1f891578a67270a444c29471ea3161ad52`. Connected GitHub metadata confirmed
+  repository ID **1444438726**, **private**, default **main**, and admin access.
+  Preserved both prior uncommitted progress files and all ignored audit evidence;
+  their hashes are recorded locally. Created task branch
+  `codex/publish-01-mlflow-attribution` from `origin/autonomous-dev` in a clean
+  worktree with source, shared Git metadata, and its own environment on one drive.
+- `upstream.py` fetched the complete official MLflow **v3.18.0** tree
+  (**11,822 entries**, not truncated), tree SHA
+  `ba41106d110b67096384da12b6b85473457598db`, root README/license, UI package
+  metadata, and other license-file locations. There is **no upstream NOTICE**
+  or separate UI/screenshot licensing-policy file in that tree; UI metadata
+  provides no separate license override. Root LICENSE.txt declares Apache-2.0
+  and `Copyright 2018 Databricks, Inc.  All rights reserved.`
+- Copied [upstream LICENSE.txt](https://github.com/mlflow/mlflow/blob/v3.18.0/LICENSE.txt)
+  verbatim to `licenses/mlflow-3.18.0-LICENSE.txt`: **11,382 bytes**, SHA-256
+  `6395355de6f391afff35996a30fb41b189b4991a4cb54993ace35ab69a0bfa28`.
+  Added `THIRD_PARTY_NOTICES.md` for the existing screenshot, upstream rights,
+  exact local-example/crop provenance, cautious scope treatment, and no implied
+  endorsement or trademark grant. This is the project's notice, not a fabricated
+  upstream NOTICE, and makes no general derivative-work claim for screenshots.
+  README caption and License section link to it and distinguish project MIT
+  material from third-party rights. MIT LICENSE and screenshot bytes are unchanged.
+- Created a Python **3.12.10** environment with `python -m venv .venv`;
+  `.venv/Scripts/python.exe -X utf8 -m pip install -e '.[dev]'` and `pip check`
+  returned **0**. An early metadata probe before installation finished reported
+  missing metadata; it was not treated as an installation verdict.
+- `.venv/Scripts/python.exe -m pytest`: **119 passed**, one existing upstream
+  MLflow/SQLAlchemy warning, **94.64 seconds**, **exit 0**.
+  `.venv/Scripts/ruff.exe check .`: **passed**;
+  `.venv/Scripts/ruff.exe format --check .`: **32 files already formatted**.
+  `.venv/Scripts/python.exe -X utf8 .cache/publication-followup/check_docs.py`
+  passed **32 internal links/anchors**, exact upstream license bytes, unchanged
+  MIT text, and screenshot SHA-256/provenance checks. `git diff --check` passed.
+- Only README, this progress entry, the project third-party notice, and the exact
+  upstream license copy are intended for commit. Source, tests, dependencies,
+  version, CI, screenshot, and historical audit remain unchanged. Raw evidence
+  stays under ignored `.cache/publication-followup/`; the previous complete review
+  is retained and will be reused for unchanged history/surfaces. No local full ML
+  acceptance or comprehensive audit was rerun. Publication remains pending PR/main
+  CI and inspection of new commits/blobs, PR content, and Actions logs/artifacts.
+
 ## 2026-11-05 — MLflow UI screenshot
 
 - The user requested a real MLflow UI screenshot of the existing Quick start
