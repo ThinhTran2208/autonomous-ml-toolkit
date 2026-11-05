@@ -114,6 +114,8 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1
 The same Quick start runs in MLflow 3.18.0, sorted by `cv_accuracy` descending.
 This actual screenshot shows training-only CV accuracy and macro F1; the toy-data
 scores illustrate the workflow. See [capture details](docs/progress.md#2026-11-05--mlflow-ui-screenshot).
+MLflow interface attribution and license terms are described in the
+[third-party notice](THIRD_PARTY_NOTICES.md#mlflow-ui-screenshot).
 
 Tracking paths resolve from the current working directory. With a custom
 `tracking_uri` in YAML, pass the same `--tracking-uri` to `compare` and `report`.
@@ -244,4 +246,9 @@ every dataset or environment.
 
 See the [API and CLI contract](docs/api.md), [contribution workflow](CONTRIBUTING.md),
 [roadmap](docs/roadmap.md), and [engineering decisions](docs/decisions.md).
-Licensed under the [MIT license](LICENSE).
+
+## License
+
+The project's own code and documentation are licensed under the [MIT license](LICENSE).
+Rights and licenses for third-party material, including the MLflow UI screenshot,
+are described separately in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
