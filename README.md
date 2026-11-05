@@ -1,259 +1,247 @@
 # ML Experiment & Evaluation Toolkit
 
-A small CPU-only Python toolkit for reproducible tabular classification and
-regression, with YAML configuration and local MLflow tracking.
+Run small tabular classification and regression experiments from YAML, compare
+models using training-only cross-validation (CV), and keep configurations, metrics,
+and fitted pipelines together in local MLflow tracking.
 
-Supports built-in Iris and Diabetes datasets, explicitly typed CSV datasets,
-logistic regression, ridge, and dummy baselines. See [the roadmap](docs/roadmap.md)
-for milestone acceptance criteria.
+For students and practitioners building repeatable CPU baselines, the toolkit
+provides:
+
+- Built-in Iris and Diabetes datasets and explicitly typed local CSV input.
+- scikit-learn pipelines for imputation, scaling, categorical encoding, and fitting.
+- Dummy baselines, logistic regression, ridge, and bounded training-only grid search.
+- CV-ranked comparisons and Markdown reports from tracked MLflow metadata.
+
+It automates the experiment workflow; it is not AutoML. You choose a compatible
+dataset, feature schema, model, and optional parameter grid. Version **0.3.0**
+targets small tabular datasets with independent, identically distributed (IID)
+rows. See [supported scope](#supported-scope) before using it for an evaluation.
 
 ## Quick start
 
-Use Python 3.11–3.13 (3.12 recommended for development).
+Use Python 3.11–3.13; Python 3.12 is recommended for development. See the
+[compatibility policy](docs/compatibility.md) for verified platform targets.
+Install from this repository; no PyPI release is required.
+
+Clone and enter the repository (GitHub access is required if it is private):
 
 ```bash
-python -m venv .venv
-# Linux/macOS:
-source .venv/bin/activate
-# Windows PowerShell, instead:
-# .venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-
-mlexp run examples/iris.yaml
-mlexp run examples/iris-dummy.yaml
-mlexp run examples/diabetes.yaml
-mlexp run examples/diabetes-dummy.yaml
-mlexp compare --experiment iris-baseline
-mlexp compare --experiment diabetes-baseline
-mlexp report RUN_ID
-mlexp report RUN_ID --output reports/run.md
+git clone https://github.com/ThinhTran2208/autonomous-ml-toolkit.git
+cd autonomous-ml-toolkit
 ```
 
-`run` prints JSON containing the run ID and metrics. Replace `RUN_ID` with that
-ID. `compare` prints JSON ordered by training-only CV accuracy (descending) or CV
-RMSE (ascending). `report` reads MLflow metadata and never retrains. Report files
-are created exclusively; an existing file is never overwritten.
+Create and activate an environment using your chosen Python version.
 
-Run all commands from the repository root for the examples. Relative tracking
-database paths are relative to the current working directory, including when a
-config file lives elsewhere. The default backend is `sqlite:///mlflow.db`, with
-artifacts in `mlartifacts/mlflow/`. Both are ignored by Git. To use another local
-database, set `tracking_uri` in YAML and pass the same `--tracking-uri` to
-`compare` and `report`. Remote stores and in-memory databases are outside M1.
+**Windows PowerShell**
 
-When upgrading an existing workspace, preserve its tracking store. Version 0.3.0
-uses evaluation protocol 4 and refuses to rank historic runs from another protocol
-or dependency environment. Use a new experiment name or set `tracking_uri` to a
-fresh SQLite database in the new configs and pass that URI to compare/report.
-Existing runs remain available through `report` with their original database URI.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-Use MLflow's existing interface for deeper inspection:
+**Linux/macOS**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install the toolkit and its runtime dependencies in the activated environment:
+
+```bash
+python -m pip install -e .
+```
+
+From the repository root, run a dummy classifier and logistic regression on the
+same seeded Iris split, then compare them:
+
+```bash
+mlexp run examples/iris-dummy.yaml
+mlexp run examples/iris.yaml
+mlexp compare --experiment iris-baseline
+```
+
+Each `run` prints JSON with `run_id`, `experiment`, and `metrics`. Copy `run_id`
+from the second run and replace `RUN_ID` below with that value:
+
+```bash
+mlexp report RUN_ID --output reports/iris.md
+```
+
+Open `reports/iris.md` for the configuration and tracked metrics. Omit `--output`
+to print Markdown to the terminal. Reports never retrain and never overwrite an
+existing output file; use a new filename for another report.
+
+For regression, use [diabetes-dummy.yaml](examples/diabetes-dummy.yaml) and
+[diabetes.yaml](examples/diabetes.yaml), then compare `diabetes-baseline`.
+Both built-in datasets run without downloads.
+
+## What you get
+
+`run` returns JSON, `compare` returns CV-ranked JSON, and `report` produces
+Markdown. This is a `compare` output **excerpt** from the Quick start workflow,
+run on Windows/Python 3.12.10 on 2026-11-05 (dummy row omitted):
+
+```json
+[
+  {
+    "run_id": "4c491d660cc44d6c9c889ecc5bcf11ab",
+    "model": "logistic_regression",
+    "selection_metric": "cv_accuracy",
+    "selection_score": 0.9583333333333334
+  }
+]
+```
+
+This toy-data score illustrates the output, not broad model quality. Your local
+run IDs will differ; use your own ID for `report`. See the
+[verification entry](docs/progress.md#2026-11-05--readme-usability-and-portfolio-refresh)
+for provenance and retained evidence.
+
+Each run stores the configuration, dataset fingerprint and schema, exact split
+and fold indices, package versions, fold scores, selection details, and fitted
+pipeline in MLflow. The default store is `mlflow.db`, with artifacts under
+`mlartifacts/mlflow/`. Stores, environments, and generated reports are ignored by
+Git. See the [artifact reference](docs/api.md#artifacts-and-metric-interpretation).
+Inspect local runs with MLflow's UI:
 
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1
 ```
 
-## Configuration
+![MLflow UI showing Iris logistic regression and dummy runs sorted by CV accuracy](docs/images/mlflow-iris-cv-comparison.jpg)
+
+The same Quick start runs in MLflow 3.18.0, sorted by `cv_accuracy` descending.
+This actual screenshot shows training-only CV accuracy and macro F1; the toy-data
+scores illustrate the workflow. See [capture details](docs/progress.md#2026-11-05--mlflow-ui-screenshot).
+
+Tracking paths resolve from the current working directory. With a custom
+`tracking_uri` in YAML, pass the same `--tracking-uri` to `compare` and `report`.
+Comparison rejects incompatible datasets, splits, protocols, or recorded package
+versions. Preserve old stores when upgrading; use a new experiment or database
+for incompatible runs. Old runs remain reportable. See [tracking details](docs/configuration.md#metrics-and-tracking).
+
+## Use your own CSV
+
+A compatible new dataset needs only YAML changes, with no Python edits or dataset
+registration. Start with the checked-in [classification example](examples/csv-classification.yaml)
+and its [small fabricated CSV](examples/data/classification.csv):
 
 ```yaml
-experiment: iris-baseline
+experiment: csv-classification
 task: classification
-dataset: iris
-model: logistic_regression
-seed: 42
-test_size: 0.2
-cv_folds: 5
-parameters:
-  C: 1.0
-  max_iter: 1000
-tracking_uri: sqlite:///mlflow.db
-```
-
-| Task | Dataset | Models | Supported parameters |
-| --- | --- | --- | --- |
-| Classification | `iris` or compatible CSV | `logistic_regression`, `dummy` | `C`, `max_iter` for logistic regression |
-| Regression | `diabetes` or compatible CSV | `ridge`, `dummy` | `alpha` for ridge |
-
-For a dummy baseline, set `model: dummy` and `parameters: {}`. Classification
-predicts the most frequent training class; regression predicts the training mean.
-Parameters must be positive finite numbers; `max_iter` must be integral. Other
-model parameters use scikit-learn defaults and are recorded in MLflow. Unknown
-keys, unsupported task/model combinations, bad split sizes, and invalid fold
-counts fail explicitly. YAML is loaded with safe constructors.
-
-## CSV input
-
-Use `examples/csv-classification.yaml` or `examples/csv-regression.yaml` for
-complete examples with small fabricated datasets checked into this repository:
-
-```bash
-mlexp run examples/csv-classification.yaml
-mlexp run examples/csv-regression.yaml
-```
-
-To use any compatible tabular CSV, change only the YAML configuration; there is
-no dataset registration or Python code to edit. Set `task` to `classification`
-with `model: logistic_regression` (or `dummy`), or `regression` with `model: ridge`
-(or `dummy`). Choose the target and feature columns in the dataset schema:
-
-```yaml
-experiment: custom-classification
-task: classification
+dataset:
+  type: csv
+  path: data/classification.csv
+  target: label
+  numeric_features: [number]
+  categorical_features: [category]
+  missing_values: impute
 model: logistic_regression
 seed: 42
 test_size: 0.2
 validation_size: 0.2
-cv_folds: 5
-dataset:
-  type: csv
-  path: data/custom.csv
-  target: label
-  numeric_features: [age, income]
-  categorical_features: [region]
-  missing_values: impute
-tracking_uri: sqlite:///custom.db
+cv_folds: 3
+tracking_uri: sqlite:///mlflow.db
 ```
 
-Save this as `experiment.yaml`, put the CSV at `data/custom.csv` beside that YAML,
-then run `mlexp run experiment.yaml`. Both task types use the same CSV loader and
-pipeline architecture. All feature names and the target are configurable.
+Run `mlexp run examples/csv-classification.yaml`. CSV paths resolve relative to
+the YAML file, so this path points to `examples/data/classification.csv`. For your
+data, copy the YAML and update the path, target, and numeric/categorical feature
+lists. Headers must match the declared target and features exactly; the target
+cannot also be a predictor.
 
-CSV paths resolve relative to the YAML file. CSV headers must match the listed
-features and target exactly; duplicate, absent, unnamed, or unexpected columns
-and malformed rows are errors. The target cannot appear among predictors.
-Blank/whitespace fields are missing; strings such as `NA` remain literal values.
-Targets are never imputed, and no rows are silently removed. Regression targets
-and numeric features must contain finite numeric values (features may be missing).
-Classification targets are string labels and must contain at least two classes.
+Blank fields are missing. Targets must be present; rows are never silently
+dropped. With `impute`, numeric features use training medians and scaling;
+categorical features use a missing marker and dense one-hot encoding. Each
+training fold learns its own transformations. Use `missing_values: error` to
+reject missing features. Unknown keys and incompatible task/model pairs fail
+explicitly.
 
-With `missing_values: impute`, numerical columns use training medians and scaling;
-a numerical column empty in a training fold is filled with zero. Categorical
-missing values use `__mlexp_missing__`, with one-hot encoding learned inside each
-fold. Unseen categories are ignored on transformation. Set `missing_values: error`
-to reject missing feature values instead. Either feature list may be empty,
-but at least one predictor is required. Dense one-hot encoding targets small
-tabular datasets; very high-cardinality data is outside this MVP.
-
-CSV bytes are read once and fingerprinted together with the explicit schema.
-The target/feature schema is recorded in the MLflow split and protocol artifacts.
-
-## Train, validation, and test splits
-
-`test_size` (default `0.2`) and `validation_size` (default `0.0`) are fractions
-of all rows. Both must be finite, test size must be positive, validation size
-must be nonnegative, and their sum must be less than one. The remainder is the
-training fraction: `0.2` test and `0.2` validation gives approximately 60/20/20.
-Counts round up when reserving each partition; train receives the remaining rows.
-The test partition is reserved first, then validation is split from the remainder
-using `validation_size / (1 - test_size)`. Classification stratifies both splits;
-all splits use `seed`. Insufficient rows or class counts fail explicitly.
-
-Cross-validation and optional parameter search run inside the training partition
-only. After a final fit on training rows, the pipeline predicts validation rows
-once (if configured), then test rows once. Validation metrics are diagnostic;
-they do not drive automatic selection or ranking. Neither validation nor test
-rows enter any preprocessing fit or final refit. `validation_*` and `test_*`
-metrics are logged separately, along with exact row identities and counts.
-With `validation_size: 0.0`, the original train/test plus training-only CV workflow
-remains available; no `validation_*` metrics are emitted.
-
-## Training-only parameter search
-
-Add an optional search grid using the same model parameter names:
-
-```yaml
-search:
-  parameter_grid:
-    C: [0.1, 1.0, 10.0]
-```
-
-```bash
-mlexp run examples/iris-search.yaml
-mlexp run examples/diabetes-search.yaml
-```
-
-The grid is limited to 8 distinct values per parameter, 32 combinations, and
-128 CV fits plus one final refit. It uses the reserved training rows exclusively,
-with a freshly fitted preprocessing pipeline in every fold. Selection maximizes
-CV accuracy for classification and minimizes CV RMSE for regression. Ties retain
-scikit-learn's deterministic candidate order. Grid values override corresponding
-fixed `parameters`; dummy models have no searchable parameters.
-
-The selected estimator is refitted once on all training rows and evaluated on
-held-out rows once. `selection.json` records the grid, scorer, all candidate fold
-scores, ranks, chosen parameters, and refit row count. `cv_*` values describe the
-chosen candidate; searching can make these scores optimistic, so they are selection
-statistics rather than an unbiased generalization estimate. Reports retain final
-test scores for final assessment only. No search parameter can reference them.
+For regression, use [csv-regression.yaml](examples/csv-regression.yaml).
+The [configuration reference](docs/configuration.md) covers schema rules,
+all-missing features, unseen categories, split rounding, model parameters, and
+bounded search, including [classification](examples/iris-search.yaml) and
+[regression](examples/diabetes-search.yaml) search examples.
 
 ## Evaluation and reproducibility
 
-1. Load data without learned preprocessing. Diabetes uses `scaled=False` to avoid
-   its loader's default full-dataset scaling.
-2. Reserve seeded test and optional validation partitions; stratify classification.
-3. Cross-validate only training rows with seeded shuffled folds. Each fold fits
-   its own median imputer, standard scaler, and estimator inside a pipeline.
-4. Refit on training rows, calculate optional validation diagnostics, then predict
-   the held-out test rows once for final metrics. Never refit on validation rows.
+1. Reserve test and optional validation rows before any learned transformation.
+   Classification stratifies splits; regression uses random row splits.
+2. Fit preprocessing and estimators inside a pipeline, separately in every
+   training-only CV fold. Optional parameter search also uses training rows only.
+3. Fit the final pipeline on training rows only, evaluate validation diagnostics
+   if configured, then predict test rows once for final evaluation.
 
-Classification reports accuracy and macro F1. Regression reports RMSE, MAE, and
-R². `cv_*` values are the unweighted mean of validation-fold scores; `*_std` is
-the population standard deviation across folds. RMSE/MAE are positive losses;
-lower is better. Each regression validation/test partition needs at least two
-rows (including a configured separate validation partition). Every classification
-training class needs at least `cv_folds` rows.
+`test_size` and `validation_size` are fractions of all rows; the remainder trains.
+Defaults are `0.2` test and `0.0` validation. Setting both to `0.2` gives
+approximately 60/20/20, subject to rounding and class availability. Validation rows
+never enter preprocessing, CV, search, or final fitting.
 
-`compare` accepts only finished runs with identical dataset contents, partitions,
-folds, scoring protocol, and recorded dependency versions. Use separate experiment
-names for different protocols. Its ordering never uses test metrics. These small
-toy datasets demonstrate the workflow; their scores are not evidence of broad
-model quality.
+`compare` ranks by CV accuracy (higher is better) for classification or CV RMSE
+(lower is better) for regression. Classification also reports macro F1;
+regression also reports MAE and R². Validation metrics are diagnostic only.
+CV scores after parameter search can be optimistic.
 
-**Test scores are final evaluation only.** Do not choose models, parameters,
-features, or thresholds from them. If you iterate after viewing test results,
-reserve a new independent final dataset for an unbiased estimate.
+**Test scores are for final evaluation only.** Do not choose models, parameters,
+features, or thresholds from test results. Each `run` emits test metrics, so
+repeated inspection while iterating compromises their role as an untouched final
+estimate; reserve new independent final data after such iteration.
 
-Every run stores the resolved configuration, dataset hash, exact split and fold
-indices, package versions, per-fold scores, model defaults, and fitted pipeline.
-Seeds reproduce partitions and results within the same dependency environment;
-floating-point results may vary by platform/version. Only load serialized model
-artifacts you trust. The toolkit never loads a model while comparing/reporting.
+Explicit seeds and recorded configurations, dataset/split identities, and versions
+support reproducibility within the same environment. They do not guarantee
+bitwise identity across platforms or dependency versions. The pipeline boundary
+does not detect every form of leakage: duplicated entities, target-copy predictors,
+and features unavailable at prediction time remain the user's responsibility.
+Only load serialized model artifacts with trusted provenance; `compare` and
+`report` do not deserialize models.
 
-## Development
+## Supported scope
+
+| Task | Input | Models | Configurable model parameters |
+| --- | --- | --- | --- |
+| Classification | Iris or compatible CSV | `logistic_regression`, `dummy` | `C`, `max_iter` for logistic regression |
+| Regression | Diabetes or compatible CSV | `ridge`, `dummy` | `alpha` for ridge |
+
+Dummy classification predicts the most frequent training class; dummy regression
+predicts the training mean. The toolkit is CPU-only, uses dense preprocessing,
+and supports persistent local SQLite tracking. It does not support time-series or
+group-aware evaluation, high-cardinality sparse workflows, multi-output targets,
+GPU training, remote tracking backends, or production deployment.
+
+## Development and verification
+
+Install development dependencies separately in the activated environment:
 
 ```bash
+python -m pip install -e ".[dev]"
 python -m pytest
 ruff check .
 ruff format --check .
-python -m build
-python scripts/verify.py
 ```
 
-`scripts/verify.py` is the shared local/CI acceptance command. It runs source
-checks, builds a wheel, installs it in a fresh environment, runs the independent
-built-in-dataset acceptance suite outside the source tree, and smoke-tests the
-CSV CLI workflows. Logs, environments, stores, and reports are preserved under
-ignored `.cache/verification/` directories. A run succeeds only if every check
-passes. It requires dependency downloads but uses no paid services.
+For packaging and independent installed-wheel acceptance, use
+`python scripts/verify.py`. It runs source checks, builds a wheel, installs it in
+a fresh environment, and runs the CLI outside the source checkout. Acceptance
+exports full Iris, Breast Cancer Wisconsin, and California Housing datasets to CSV, exercises mixed
+features and missing values, reconstructs CV/validation/test metrics, and checks
+training-only preprocessing statistics. It also smoke-tests both checked-in CSV
+workflows. Logs and environments are retained under ignored `.cache/verification/`.
 
-Independent wheel acceptance exports the full Iris (150 rows), Breast Cancer
-Wisconsin (569 rows), and California Housing (20,640 rows) datasets to temporary
-CSVs, then runs the same CLI with different YAML schemas. It includes categorical
-predictors and missing feature values, reconstructs every CV/validation/test
-metric, and verifies training-only imputer/scaler statistics. California Housing
-is [downloaded by scikit-learn](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.fetch_california_housing.html)
-on the first acceptance run into ignored `.cache/datasets/`; subsequent runs use
-the cache. A download failure fails acceptance rather than skipping the test.
-Ordinary `mlexp run` never downloads datasets; users supply their CSV locally.
+The first acceptance run downloads California Housing through scikit-learn into
+ignored `.cache/datasets/`; later runs use the cache. Download failures fail
+acceptance. Ordinary CSV experiments read local files and never download datasets.
+The [CI workflow](.github/workflows/ci.yml) uses the same verifier; actual executed
+results and platform limits are recorded in [progress](docs/progress.md).
 
-CI targets Linux Python 3.11, 3.12, and 3.13, plus Windows Python 3.12, in Unicode
-checkout paths, using that same command. A Windows-only
-threadpoolctl constraint avoids a verified 3.7 DLL discovery issue in such paths.
-Local test fixtures use temporary tracking databases and never overwrite
-the example store. See [decisions](docs/decisions.md), [progress](docs/progress.md),
-and [engineering instructions](AGENTS.md) before contributing.
+AI agents assisted implementation, documentation, and verification work under the
+[engineering instructions](AGENTS.md). Automated tests and installed-wheel
+acceptance check behavior; the [independent audit](docs/audits/mvp-v0.3.0-independent-audit.md)
+records separate probes and a historical conditional verdict. The
+[release notes](docs/release-notes.md) record the subsequent fix and focused
+re-audit outcome. These records describe verification scope, not a guarantee for
+every dataset or environment.
 
-See [public API and CLI behavior](docs/api.md), [contribution workflow](CONTRIBUTING.md),
-[compatibility policy](docs/compatibility.md), and [release notes](docs/release-notes.md).
-
+See the [API and CLI contract](docs/api.md), [contribution workflow](CONTRIBUTING.md),
+[roadmap](docs/roadmap.md), and [engineering decisions](docs/decisions.md).
 Licensed under the [MIT license](LICENSE).

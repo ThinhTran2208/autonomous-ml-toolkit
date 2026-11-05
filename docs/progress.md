@@ -2,6 +2,125 @@
 
 Project status: MVP_COMPLETE
 
+## 2026-11-05 — MLflow UI screenshot
+
+- The user requested a real MLflow UI screenshot of the existing Quick start
+  runs. Rechecked Git status, branch, remote refs, engineering instructions,
+  roadmap, decisions, and progress. The `autonomous-dev` worktree was clean at
+  `e647d3ff6409b96dd2e3547b8d17aa5e57d251b9` and matched the remote.
+- Started the installed `.venv/Scripts/mlflow.exe ui --backend-store-uri
+  sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1` in the same
+  worktree, bound to localhost only. The first browser request preceded server
+  readiness and returned connection refused; navigation after startup succeeded.
+  Startup logs are retained under ignored `.cache/readme-refresh/ui.*.log`.
+  MLflow reports that job execution is unsupported on Windows and emits an
+  upstream Starlette deprecation warning; the tracking UI loaded successfully.
+- Opened `iris-baseline` in MLflow **3.18.0**, using the original local SQLite
+  store. Verified the run links point to logistic regression
+  `4c491d660cc44d6c9c889ecc5bcf11ab` and dummy
+  `6574fb9c8efd4a268d1dc15361dc4673`. No models were retrained and no artifacts
+  were deserialized. Displayed only `cv_accuracy` and `cv_f1_macro`, sorted by
+  descending CV accuracy, and widened columns through the UI for readable values.
+- Saved `docs/images/mlflow-iris-cv-comparison.jpg` directly from the browser
+  screenshot API. The **1280 x 350** capture crops unused whitespace below the
+  table while retaining the MLflow version, experiment, run names, sort, and
+  metric headers. No pixels, values, or labels were synthesized or retouched.
+  Visually verified both rows, full names, and CV values against the stored output;
+  no credentials, user names, or machine-specific paths appear in the image.
+- Added the image, descriptive alt text, and a provenance caption beside the
+  existing MLflow UI command in README. Only README, this log, and the requested
+  screenshot asset are deliverable changes.
+- `.venv/Scripts/python.exe -m pytest`: **119 passed**, one existing upstream
+  MLflow/SQLAlchemy warning, **153.72 seconds**, **exit 0**. Log retained at
+  `.cache/readme-refresh/screenshot-pytest.log`.
+- `.venv/Scripts/ruff.exe check .`: **passed**;
+  `.venv/Scripts/ruff.exe format --check .`: **31 files already formatted**.
+  `.venv/Scripts/python.exe -X utf8 .cache/readme-refresh/check_docs.py` passed
+  **28 internal file/anchor links**, **12 configurations**, YAML/example equality,
+  and the existing JSON excerpt checks. `git diff --check` passed.
+- A read-only Pillow inspection confirmed JPEG format, **1280 x 350**, and
+  **no EXIF metadata**. Read the four displayed CV values from the original
+  `logistic.stdout` and `dummy.stdout` JSON and matched them visually to the image.
+  Asset size is **44,356 bytes**, SHA-256
+  `2dbc81b3afa0247c6bad543aca1017f166a6a1e40a9965b21601c1174fb7aae4`.
+- `git diff --exit-code e647d3f -- src tests acceptance scripts pyproject.toml
+  .github docs/audits docs/configuration.md docs/release-notes.md` returned **0**.
+  Stopped only the owned local UI server process tree after capture, verifying its
+  executable and descendant process IDs first. Existing runs and stores remain.
+- Limits: local Windows/Python 3.12 verification only; no full verifier, build,
+  installed-wheel acceptance, or new audit was needed or rerun. Hosted CI for this
+  documentation commit is not claimed verified. Main and the release tag remain
+  outside the update; no model, parameter, feature, or threshold was chosen using
+  test scores.
+
+## 2026-11-05 — README usability and portfolio refresh
+
+- Checked `git status --short`, `git branch -avv`, `git remote -v`, and
+  `git worktree list --porcelain` before editing. Preserved the original checkout's
+  uncommitted progress entry. Read AGENTS.md, roadmap, decisions, progress, source,
+  examples, API/compatibility/release documentation, and the historical audit.
+- `git ls-remote --symref origin HEAD refs/heads/autonomous-dev refs/heads/main
+  refs/tags/v0.3.0 'refs/tags/v0.3.0^{}'` confirmed the default is `main`, and
+  `main`, `autonomous-dev`, and the peeled release tag point to
+  `f014ce6f16e23d9cd4f855d615161edfbec132a0`. `git fetch origin` succeeded.
+  Created a clean worktree for `autonomous-dev` and ran
+  `git merge --ff-only origin/autonomous-dev`. Source, shared Git metadata, and
+  the new virtual environment reside on the same drive.
+- Reworked README onboarding, runtime/development setup, one classification
+  workflow, CSV example, output explanation, evaluation boundaries, supported
+  models, and AI-assisted development evidence. Moved detailed configuration,
+  CSV/schema, split, search, and tracking rules to `docs/configuration.md`.
+  Production code, tests, dependencies, version, CI, and historical audit are unchanged.
+- Python 3.12.10 `python -m venv .venv`, runtime install
+  `.venv/Scripts/python.exe -m pip install -e .`, and development install
+  `.venv/Scripts/python.exe -m pip install -e '.[dev]'` returned **0**.
+  The redirected development-install log contains pip cp1252 logging errors;
+  `pip check` returned **0**. An initial metadata probe ran before the runtime
+  installation finished and reported missing metadata; it was not a completed
+  installation check. A plain `pip freeze --all` subsequently failed decoding
+  the Unicode Git path. `.venv/Scripts/python.exe -X utf8 -m pip freeze --all`
+  returned **0**. No pip patch, upgrade, or dependency change was made.
+- `.venv/Scripts/python.exe .cache/readme-refresh/smoke.py` invokes the actual
+  CLI with the unchanged example YAMLs in this clean worktree. Iris dummy run:
+  `6574fb9c8efd4a268d1dc15361dc4673`; logistic run:
+  `4c491d660cc44d6c9c889ecc5bcf11ab`. Both `run` commands and
+  `compare --experiment iris-baseline` returned **0**. CV accuracy was
+  **0.3333333333333333** and **0.9583333333333334**, respectively.
+  README reproduces the logistic row verbatim and labels the omitted dummy row.
+  These runs demonstrate fixed configurations; no test score informed a choice.
+- `report RUN_ID --output reports/iris.md` and `report RUN_ID` returned **0**;
+  file and terminal Markdown match exactly. Raw stdout/stderr, exact CLI command
+  arrays, exit codes, and the successful environment freeze are retained under
+  ignored `.cache/readme-refresh/`; the SQLite store and model artifacts remain
+  local and untracked. MLflow is **3.18.0**, scikit-learn **1.9.1**, NumPy **2.5.4**,
+  pandas **3.1.1**, and threadpoolctl **3.6.0** in this environment.
+- The same smoke helper completed `run examples/csv-classification.yaml` and
+  `run/compare/report --help`, all **exit 0**. `mlflow ui --help` returned **0**;
+  its documented backend-store and host flags were checked without starting a server.
+- `.venv/Scripts/python.exe -m pytest`: **119 passed**, one existing upstream
+  MLflow/SQLAlchemy deprecation warning, **101.64 seconds**, **exit 0**.
+  `.venv/Scripts/ruff.exe check .`: **passed**;
+  `.venv/Scripts/ruff.exe format --check .`: **31 files already formatted**.
+- `.venv/Scripts/python.exe -X utf8 .cache/readme-refresh/check_docs.py`:
+  **passed**. Checked balanced Markdown fences, **26 internal file/anchor links**,
+  **12 configurations** (all eight example files and four documentation snippets),
+  exact README CSV YAML equality with its example, example CSV path resolution,
+  experiment names, clone URL, and verbatim equality of the JSON excerpt to saved
+  `compare` stdout. `git diff --check` passed. The temporary inspection/smoke
+  helpers and logs are ignored; no new project tests or tools were added.
+- Final Ruff lint/format and documentation checks passed again after editing.
+  `git diff --exit-code f014ce6 -- src tests acceptance scripts pyproject.toml
+  .github docs/audits docs/release-notes.md` returned **0**, confirming the change
+  stays within documentation scope. Rechecked remote refs before committing:
+  `autonomous-dev`, `main`, and the peeled release tag still match the starting SHA.
+- Limits: this change was exercised locally on Windows/Python 3.12 only. The
+  Linux/macOS activation instructions were reviewed, not executed. The MLflow UI
+  server, full verifier, build, installed-wheel acceptance, and comprehensive audit
+  were not rerun for this documentation change; prior acceptance/audit records
+  remain historical evidence. Hosted CI for the resulting commit is not claimed
+  verified here. No feature selection used test scores, and no generated data or
+  machine-specific paths are included in the deliverables.
+
 ## 2026-11-04 — Cross-drive environment diagnosis and release verification
 
 - Reproduced the known failure using the isolated worktree's own Python 3.12.10
