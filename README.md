@@ -109,6 +109,12 @@ Inspect local runs with MLflow's UI:
 mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1
 ```
 
+![MLflow UI showing Iris logistic regression and dummy runs sorted by CV accuracy](docs/images/mlflow-iris-cv-comparison.jpg)
+
+The same Quick start runs in MLflow 3.18.0, sorted by `cv_accuracy` descending.
+This actual screenshot shows training-only CV accuracy and macro F1; the toy-data
+scores illustrate the workflow. See [capture details](docs/progress.md#2026-11-05--mlflow-ui-screenshot).
+
 Tracking paths resolve from the current working directory. With a custom
 `tracking_uri` in YAML, pass the same `--tracking-uri` to `compare` and `report`.
 Comparison rejects incompatible datasets, splits, protocols, or recorded package

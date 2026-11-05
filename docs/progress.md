@@ -2,6 +2,57 @@
 
 Project status: MVP_COMPLETE
 
+## 2026-11-05 — MLflow UI screenshot
+
+- The user requested a real MLflow UI screenshot of the existing Quick start
+  runs. Rechecked Git status, branch, remote refs, engineering instructions,
+  roadmap, decisions, and progress. The `autonomous-dev` worktree was clean at
+  `e647d3ff6409b96dd2e3547b8d17aa5e57d251b9` and matched the remote.
+- Started the installed `.venv/Scripts/mlflow.exe ui --backend-store-uri
+  sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1` in the same
+  worktree, bound to localhost only. The first browser request preceded server
+  readiness and returned connection refused; navigation after startup succeeded.
+  Startup logs are retained under ignored `.cache/readme-refresh/ui.*.log`.
+  MLflow reports that job execution is unsupported on Windows and emits an
+  upstream Starlette deprecation warning; the tracking UI loaded successfully.
+- Opened `iris-baseline` in MLflow **3.18.0**, using the original local SQLite
+  store. Verified the run links point to logistic regression
+  `4c491d660cc44d6c9c889ecc5bcf11ab` and dummy
+  `6574fb9c8efd4a268d1dc15361dc4673`. No models were retrained and no artifacts
+  were deserialized. Displayed only `cv_accuracy` and `cv_f1_macro`, sorted by
+  descending CV accuracy, and widened columns through the UI for readable values.
+- Saved `docs/images/mlflow-iris-cv-comparison.jpg` directly from the browser
+  screenshot API. The **1280 x 350** capture crops unused whitespace below the
+  table while retaining the MLflow version, experiment, run names, sort, and
+  metric headers. No pixels, values, or labels were synthesized or retouched.
+  Visually verified both rows, full names, and CV values against the stored output;
+  no credentials, user names, or machine-specific paths appear in the image.
+- Added the image, descriptive alt text, and a provenance caption beside the
+  existing MLflow UI command in README. Only README, this log, and the requested
+  screenshot asset are deliverable changes.
+- `.venv/Scripts/python.exe -m pytest`: **119 passed**, one existing upstream
+  MLflow/SQLAlchemy warning, **153.72 seconds**, **exit 0**. Log retained at
+  `.cache/readme-refresh/screenshot-pytest.log`.
+- `.venv/Scripts/ruff.exe check .`: **passed**;
+  `.venv/Scripts/ruff.exe format --check .`: **31 files already formatted**.
+  `.venv/Scripts/python.exe -X utf8 .cache/readme-refresh/check_docs.py` passed
+  **28 internal file/anchor links**, **12 configurations**, YAML/example equality,
+  and the existing JSON excerpt checks. `git diff --check` passed.
+- A read-only Pillow inspection confirmed JPEG format, **1280 x 350**, and
+  **no EXIF metadata**. Read the four displayed CV values from the original
+  `logistic.stdout` and `dummy.stdout` JSON and matched them visually to the image.
+  Asset size is **44,356 bytes**, SHA-256
+  `2dbc81b3afa0247c6bad543aca1017f166a6a1e40a9965b21601c1174fb7aae4`.
+- `git diff --exit-code e647d3f -- src tests acceptance scripts pyproject.toml
+  .github docs/audits docs/configuration.md docs/release-notes.md` returned **0**.
+  Stopped only the owned local UI server process tree after capture, verifying its
+  executable and descendant process IDs first. Existing runs and stores remain.
+- Limits: local Windows/Python 3.12 verification only; no full verifier, build,
+  installed-wheel acceptance, or new audit was needed or rerun. Hosted CI for this
+  documentation commit is not claimed verified. Main and the release tag remain
+  outside the update; no model, parameter, feature, or threshold was chosen using
+  test scores.
+
 ## 2026-11-05 — README usability and portfolio refresh
 
 - Checked `git status --short`, `git branch -avv`, `git remote -v`, and
